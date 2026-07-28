@@ -2,15 +2,15 @@
 
 ## Prerequisites
 
-- Python 3.12+
+- Python 3.14+ (`pyproject.toml` sets `requires-python = ">=3.14"`)
 - [uv](https://docs.astral.sh/uv/) (`brew install uv` on macOS)
 
 ## Setup
 
 ```bash
 # Clone and enter the repo
-git clone https://github.com/SpanPanel/simulator.git
-cd simulator
+git clone https://github.com/electrification-bus/distribution-enclosure-simulator.git
+cd distribution-enclosure-simulator
 
 # Create venv and install all dependencies (runtime + dev)
 # uv reads pyproject.toml and uv.lock, creates .venv/ automatically
@@ -20,29 +20,30 @@ uv sync --group dev
 uv run pre-commit install
 ```
 
-That's it. The `.venv/` directory is created in the project root and
-`uv.lock` pins exact versions for reproducible installs.
+That's it. The `.venv/` directory is created in the project root and `uv.lock` pins exact versions for reproducible installs.
 
 ## Common Commands
 
 ```bash
-# Run the simulator
-uv run span-simulator
+# Run the standalone example (a producer driving the emitter over a broker)
+uv run python examples/run_forty_tab_minimal.py
 
 # Run tests
 uv run pytest
 
 # Lint + format
-uv run ruff check --fix src/ tests/
-uv run ruff format src/ tests/
+uv run ruff check --fix src tests
+uv run ruff format src tests
 
-# Type check
-uv run mypy --strict src/span_panel_simulator/
+# Type check (strict; matches the pre-commit hook)
+uv run mypy --strict src/dist_enc_sim tests
 
 # Add a new dependency
 uv add <package>          # runtime
 uv add --group dev <pkg>  # dev only
 ```
+
+This package has no console entry point (`pyproject.toml` defines no `[project.scripts]`): it is a producer library. The `examples/` directory is the runnable demonstration of correct output.
 
 ## Pre-commit Hooks
 
@@ -52,27 +53,27 @@ Every commit is validated by:
 |---|---|
 | **ruff** | Lint rules (E, F, W, I, UP, B, SIM, TCH, RUF) with auto-fix |
 | **ruff-format** | Consistent formatting |
-| **mypy --strict** | Full strict type checking across all source files |
+| **mypy --strict** | Full strict type checking across `src/dist_enc_sim` and `tests` |
 | **trailing-whitespace** | No trailing whitespace |
 | **end-of-file-fixer** | Files end with a newline |
 | **check-yaml** | Valid YAML syntax |
 | **check-added-large-files** | Prevents accidental large file commits |
 
-## Simulation Engine Internals
+## Emitter Internals
 
-### Power Calculation (per tick)
+The emitter is the **publisher** half of the eBus producer/emitter split: the producer (a simulator, a real gateway, or a modelling agent) computes the generation-side physics (solar curves, HVAC modulation, weather, battery schedules) and hands the emitter a per-tick driving signal via `TickInputs`. The emitter derives wire-facing telemetry from that signal and publishes it. It does **not** run the generation models itself.
 
-1. Apply relay and priority overrides (immediate effect)
-2. Check relay state (open = 0W)
-3. Apply base power from `typical_power` with `power_variation` randomness
-4. Producers: geographic sine-curve solar model with weather degradation
-5. Consumers: modulate by time-of-day profile / hour factors (if configured)
-6. HVAC seasonal modulation (latitude-aware temperature model scales power by season)
-7. Apply cycling pattern on/off state (if configured)
-8. Apply battery charge/discharge schedule or solar charge mode (if configured)
-9. Apply smart grid response (if configured)
-10. Add noise (`noise_factor`)
-11. Apply load shedding overlays (if grid offline with battery)
+### Per-tick flow
+
+Each tick, given `TickInputs` (signed power per circuit, current time, grid-online flag):
+
+1. Resolve per-circuit relay state, applying strict precedence across command sources (`relay_resolver.py`).
+2. Run native-device behaviours that own their own state (`native_devices/`): BESS dispatch (`bess.py`) and load shedding (`load_shedding.py`).
+3. Derive gated per-circuit power, then aggregate panel-level meter values (`panel_meter.py`, a pure function).
+4. Integrate energy in watt-hours per instance (`energy_integrator.py`).
+5. Translate the resulting snapshot into a `PropertyBag` and diff-publish (`wire/bag_builder.py`, `wire/property_bag.py`, `wire/publisher.py`).
+
+Device identity and static attributes come from the producer once at startup via the `DeviceManifest` (`manifest.py`); dynamic telemetry is derived here. The split is **identity = manifest, telemetry = derived from TickInputs**.
 
 ### Energy Accumulation
 
@@ -82,181 +83,63 @@ Energy integrates over time in watt-hours:
 delta_energy = power_watts * delta_seconds / 3600
 ```
 
-Consumed and produced energy are tracked separately per circuit.
+Consumed and produced energy are tracked separately per circuit, seeded from producer-supplied starting values.
 
 ### Diffing
 
-Only changed property values are republished each tick. Unchanged values
-are not retransmitted.
-
-## Home Assistant Add-on (App)
-
-### Directory naming matters
-
-The `span_panel_simulator/` directory **must** match the `slug` field in
-`config.yaml`. The HA Supervisor uses the directory name to identify the
-add-on — renaming it will break discovery. If you need to change the slug,
-update both the directory name and the `slug` field together.
-
-### Build pipeline
-
-The GitHub Actions workflow (`.github/workflows/build-addon.yaml`) builds
-the Docker image from the **repo root** as the build context (not from the
-add-on subdirectory). This is necessary because the Dockerfile needs access
-to `pyproject.toml`, `src/`, and `mosquitto/` which live at the repo root.
-
-The HA Supervisor would normally build from the add-on subdirectory, which
-can't reach parent files — that's why we use the `image:` field to pull
-pre-built images instead.
-
-The workflow:
-- Triggers on pushes to `main` that touch source, config, or workflow files
-- Builds per-architecture images (amd64, aarch64) using the appropriate
-  HA base image
-- Pushes to `ghcr.io/SpanPanel/simulator/{arch}:{version}`
-
-### Local testing
-
-There are three ways to run the simulator locally, depending on what
-you're testing:
-
-**1. Native (recommended for development)**
-
-Runs directly on the host with full mDNS visibility. Best for iterating
-on simulator code and testing integration discovery.
-
-```bash
-./scripts/run-local.sh
-```
-
-To connect to a Home Assistant instance for entity discovery and recorder
-statistics (needed for profile import, cost modeling, and the data
-acquisition layer), pass your HA credentials:
-
-```bash
-./scripts/run-local.sh --ha-url http://192.168.1.10:8123 --ha-token YOUR_LONG_LIVED_TOKEN
-```
-
-Or via environment variables:
-
-```bash
-export HA_URL=http://192.168.1.10:8123
-export HA_TOKEN=YOUR_LONG_LIVED_TOKEN
-./scripts/run-local.sh
-```
-
-When running as an HA add-on, the Supervisor injects `SUPERVISOR_TOKEN`
-automatically and these are not needed.  See `ha_api/client.py` for
-the dual-mode detection logic.
-
-**2. Docker container**
-
-Builds and runs the same image that CI pushes to GHCR. Useful for
-verifying the container works before pushing. HTTP, MQTTS, and the
-dashboard are all reachable via the mapped ports. mDNS auto-discovery
-won't work on macOS because all container runtimes (Colima, Docker
-Desktop, OrbStack) run inside a Linux VM with NAT networking — the
-multicast packets never reach the host LAN. The `span-panel`
-integration can still connect by manual configuration instead of
-zeroconf discovery. On Linux, Docker runs natively and mDNS works
-with host networking.
-
-```bash
-# Build (use aarch64 base on Apple Silicon, amd64 on Intel/Linux)
-docker build -f span_panel_simulator/Dockerfile \
-  --build-arg BUILD_FROM=ghcr.io/home-assistant/aarch64-base-python:3.13-alpine3.21 \
-  -t span-panel-simulator:local .
-
-# Run
-mkdir -p .local/addon-test
-cat > .local/addon-test/options.json <<'EOF'
-{
-  "config_file": "span_simulator/default_config.yaml",
-  "tick_interval": 1.0,
-  "log_level": "INFO",
-  "advertise_address": "",
-  "dashboard_enabled": true
-}
-EOF
-
-docker run --rm \
-  -p 18883:18883 -p 8081:8081 -p 18080:18080 \
-  -v $(pwd)/configs:/config/span_simulator \
-  -v $(pwd)/.local/addon-test:/data \
-  span-panel-simulator:local
-```
-
-**3. HA add-on**
-
-Requires a Home Assistant instance running HA OS or a supervised install
-(the Supervisor manages add-on containers). Add the repo URL as a custom
-repository and install from the Add-on Store. This is the only way to
-test the full add-on lifecycle (options UI, Supervisor image pull,
-`/data/options.json` injection).
-
-## TLS Certificates
-
-Certificates are generated automatically on first run and cached in the
-cert directory. The server certificate SAN includes:
-
-- `span-simulator` (hostname)
-- `localhost`
-- `127.0.0.1`
-- The `ADVERTISE_ADDRESS` IP (if set)
-
-If the host IP changes, certificates are automatically regenerated on the
-next startup. Delete `.local/certs/` to force regeneration.
+Only changed property values are republished each tick (`wire/property_bag.py` holds the diff cache; `wire/publisher.py` owns the loop). Unchanged values are not retransmitted.
 
 ## Directory Layout
 
 ```
-simulator/
-  repository.json            # HA add-on repository metadata
-  configs/                   # Panel YAML configurations
-  span_panel_simulator/      # HA add-on (dir name must match slug)
-    config.yaml              # Add-on metadata, image ref, options schema
-    build.yaml               # Per-architecture base images
-    Dockerfile               # Used by CI (build context is repo root)
-    run.sh                   # Container entry point
-    DOCS.md                  # User-facing add-on documentation
-    translations/en.yaml     # Option labels for HA UI
+distribution-enclosure-simulator/
+  pyproject.toml               # Package metadata, deps, ruff/mypy/pytest config
+  uv.lock                      # Pinned dependency versions
+  README.md                    # Overview and usage
+  DEVELOPER.md                 # This guide
+  CHANGELOG.md
+  LICENSE
+  AGENTS.md                    # Agent rules (no AI attribution in commits)
+  .pre-commit-config.yaml
+  .python-version
   .github/workflows/
-    build-addon.yaml         # CI: build and push images to GHCR
-  docs/images/               # Screenshots
-  scripts/
-    run-local.sh            # macOS native (recommended)
-    entrypoint.sh           # Docker entrypoint (Linux)
-  src/span_panel_simulator/
-    __main__.py             # CLI and entry point
-    app.py                  # Multi-panel orchestrator
-    panel.py                # Single panel lifecycle
-    engine.py               # Power/energy simulation
-    circuit.py              # Per-circuit state and snapshot
-    clock.py                # Simulation clock with acceleration
-    bsee.py                 # Battery storage equipment (BESS/GFE)
-    hvac.py                 # Seasonal HVAC power modulation
-    solar.py                # Geographic sine-curve solar model
-    weather.py              # Open-Meteo historical weather
-    publisher.py            # Homie MQTT publisher (with diffing)
-    bootstrap.py            # HTTP API server
-    discovery.py            # mDNS advertisement
-    certs.py                # TLS certificate generation
-    models.py               # Snapshot dataclasses
-    config_types.py         # YAML schema TypedDicts
-    ha_api/                 # Home Assistant API client (dual-mode)
-      client.py             # REST API client (Supervisor or local)
-      entity_discovery.py   # SPAN device -> circuit entity mapping
-      profile_builder.py    # Recorder stats -> usage profiles
-    dashboard/              # Web dashboard (port 18080)
-      routes.py             # HTMX route handlers
-      config_store.py       # In-memory config state
-      presets.py             # Profile and schedule presets
-      defaults.py           # Entity type defaults
-      solar.py              # Solar curve computation
-      templates/            # Jinja2 templates
-      static/               # CSS, JS (htmx, Chart.js, noUiSlider)
-  .local/                   # Runtime state (gitignored)
-    certs/                  # Generated TLS certificates
-    mosquitto/              # Mosquitto config and passwd
-    pids/                   # Process ID files
+    ci.yaml                    # CI: ruff, ruff-format, mypy --strict, pytest
+  examples/
+    forty_tab_minimal.yaml     # Example device manifest
+    run_forty_tab_minimal.py   # Minimal standalone producer + emitter demo
+  src/dist_enc_sim/
+    __init__.py                # Public surface
+    emitter.py                 # Public Emitter facade (wire publisher + native runtime)
+    tick_inputs.py             # TickInputs: the producer/emitter per-tick contract
+    manifest.py                # Producer-supplied device identity manifest
+    manifest_physics.py        # Typed accessor over device metadata (physics fields)
+    relay_resolver.py          # Per-circuit relay state with strict command precedence
+    energy_integrator.py       # Per-instance watt-hour energy accumulator
+    panel_meter.py             # Panel-level aggregator (pure function)
+    snapshot.py                # Per-tick snapshot dataclasses (internal model)
+    exceptions.py              # Public exception hierarchy
+    conventions/
+      tab_legs.py              # Tab-to-leg convention for split-phase panels
+    native_devices/            # Emitter-native device behaviours
+      bess.py                  # Native BESS (configured, self-driving)
+      load_shedding.py         # Native load-shedding controller
+      protocol.py              # Native-device tick contract
+    wire/                      # Homie 5 wire production over ebus-sdk
+      graph_builder.py         # Manifest + mappings + profiles -> SDK Device graph
+      profile_loader.py        # Load vendored Homie 5 profile JSONs
+      mapping_loader.py        # Load vendored mapping descriptor YAMLs
+      bag_builder.py           # Snapshot -> PropertyBag translator
+      property_bag.py          # Per-tick property values + diff cache
+      publisher.py             # Per-tick diff/publish loop
+      lifecycle.py             # $state, $description, /set subscription, LWT
+      set_router.py            # Setter registry and /set dispatch
+      wire_paths.py            # Homie topic-template helpers
+      _sdk_seam.py             # Internal seam over ebus_sdk.property
+      profiles/                # Vendored Homie 5 device profiles (JSON), per device type
+      mapping/                 # Vendored mapping descriptors (YAML), per device type
+  tests/                       # pytest suite (asyncio auto; in-process amqtt broker)
+    conftest.py
+    conventions/               # convention tests
+    wire/                      # wire-layer tests
+    test_*.py                  # unit tests (manifest, energy, relay, panel meter, ...)
 ```

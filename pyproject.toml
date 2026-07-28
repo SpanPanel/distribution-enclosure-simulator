@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "ebus-emitter"
+name = "dist-enc-sim"
 version = "0.1.0"
 description = "Producer-side Homie publisher with embedded behaviour runtime for the eBus convention"
 requires-python = ">=3.14"
@@ -28,11 +28,11 @@ dev = [
 Repository = "TBD"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/ebus_emitter"]
+packages = ["src/dist_enc_sim"]
 
 [tool.hatch.build.targets.wheel.force-include]
-"src/ebus_emitter/wire/profiles" = "ebus_emitter/wire/profiles"
-"src/ebus_emitter/wire/mapping" = "ebus_emitter/wire/mapping"
+"src/dist_enc_sim/wire/profiles" = "dist_enc_sim/wire/profiles"
+"src/dist_enc_sim/wire/mapping" = "dist_enc_sim/wire/mapping"
 
 [tool.ruff]
 target-version = "py314"

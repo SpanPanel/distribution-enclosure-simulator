@@ -1,4 +1,4 @@
-# ebus-emitter
+# dist-enc-sim
 
 Producer-side Homie 5 publisher for the eBus convention. The producer (a
 simulator, a real panel gateway, an LLM-driven modelling agent) hands the
@@ -46,10 +46,10 @@ This package is **not** published to PyPI. Pin via local path or git URL:
 
 ```toml
 # pyproject.toml — local-path dep during development
-ebus-emitter = { path = "../emitter", editable = true }
+dist-enc-sim = { path = "../emitter", editable = true }
 
 # or git URL
-"ebus-emitter @ git+https://github.com/<owner>/<repo>@<sha>"
+"dist-enc-sim @ git+https://github.com/<owner>/<repo>@<sha>"
 ```
 
 It depends on the local `ebus-sdk` (also not on PyPI):
@@ -76,7 +76,7 @@ dispatch, decides load-shedding, applies relay-state precedence (always-on >
 import asyncio
 import time
 
-from ebus_emitter import (
+from dist_enc_sim import (
     BESSConfig, DeviceInstance, DeviceManifest, Emitter,
     LoadSheddingConfig, SetterRegistry, TickInputs,
 )
@@ -221,13 +221,13 @@ the US residential split-phase convention: odd-numbered tabs land on L1,
 even-numbered tabs on L2. A 240 V dipole circuit occupies two adjacent tabs
 (e.g. `(1, 2)`) — one per leg.
 
-The function is isolated in `ebus_emitter.conventions.tab_legs` so non-US /
+The function is isolated in `dist_enc_sim.conventions.tab_legs` so non-US /
 3-phase support can land here later without touching `PanelMeter` or per-leg
 current calculations.
 
 ## Native devices
 
-### BESS — `ebus_emitter.native_devices.bess`
+### BESS — `dist_enc_sim.native_devices.bess`
 
 Owns dispatch decision, SOC/SOE accumulation, mode behaviour
 (self-consumption / backup-only), charge/discharge windows, and the
@@ -259,7 +259,7 @@ to restore the last-known SOC/SOE.
 Subclassing `BESSDevice` is supported for vendor-variant behaviour (Powerwall
 vs Enphase IQ etc.) without a plugin framework.
 
-### Load shedding — `ebus_emitter.native_devices.load_shedding`
+### Load shedding — `dist_enc_sim.native_devices.load_shedding`
 
 When the grid is offline, the policy returns the set of circuit instance_ids
 whose priority is `OFF_GRID`, or `SOC_THRESHOLD` when the live SOC falls

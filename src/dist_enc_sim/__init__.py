@@ -1,4 +1,4 @@
-"""ebus-emitter — producer-side Homie wire publisher with native-device runtime.
+"""dist-enc-sim — producer-side Homie wire publisher with native-device runtime.
 
 Architecture (v0.3.0):
 
@@ -18,9 +18,9 @@ Producer contract (v0.3.0): build a ``DeviceManifest`` once at startup, then cal
 ``Emitter.publish_tick(TickInputs)`` each tick with signed circuit/EVSE powers,
 ``current_time``, and ``grid_online``. The emitter does the rest."""
 
-from ebus_emitter.conventions.tab_legs import Leg, legs_for_tabs
-from ebus_emitter.emitter import Emitter
-from ebus_emitter.exceptions import (
+from dist_enc_sim.conventions.tab_legs import Leg, legs_for_tabs
+from dist_enc_sim.emitter import Emitter
+from dist_enc_sim.exceptions import (
     EmitterError,
     EmitterStateError,
     ManifestValidationError,
@@ -28,8 +28,8 @@ from ebus_emitter.exceptions import (
     ProfileValidationError,
     RuntimeSpecValidationError,
 )
-from ebus_emitter.manifest import DeviceInstance, DeviceManifest
-from ebus_emitter.manifest_physics import (
+from dist_enc_sim.manifest import DeviceInstance, DeviceManifest
+from dist_enc_sim.manifest_physics import (
     BessPhysics,
     CircuitPhysics,
     EvsePhysics,
@@ -38,7 +38,7 @@ from ebus_emitter.manifest_physics import (
     PanelPhysics,
     PvPhysics,
 )
-from ebus_emitter.native_devices import (
+from dist_enc_sim.native_devices import (
     BESSConfig,
     BESSDevice,
     LoadSheddingConfig,
@@ -46,8 +46,8 @@ from ebus_emitter.native_devices import (
     NativeDevice,
     NativeTickContext,
 )
-from ebus_emitter.relay_resolver import RelayRequester, RelayResolver, RelayState
-from ebus_emitter.snapshot import (
+from dist_enc_sim.relay_resolver import RelayRequester, RelayResolver, RelayState
+from dist_enc_sim.snapshot import (
     EbusBatterySnapshot,
     EbusCircuitSnapshot,
     EbusEvseSnapshot,
@@ -61,8 +61,8 @@ from ebus_emitter.snapshot import (
     EbusPanelStatus,
     EbusPvSnapshot,
 )
-from ebus_emitter.tick_inputs import PanelEnvelopeTick, TickInputs
-from ebus_emitter.wire.set_router import SetterHandler, SetterRegistry
+from dist_enc_sim.tick_inputs import PanelEnvelopeTick, TickInputs
+from dist_enc_sim.wire.set_router import SetterHandler, SetterRegistry
 
 __all__ = [
     "BESSConfig",

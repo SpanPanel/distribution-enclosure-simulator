@@ -8,8 +8,8 @@ from typing import Literal, cast
 
 import yaml
 
-from ebus_emitter.exceptions import ProfileValidationError
-from ebus_emitter.wire.profile_loader import ProfileTable
+from dist_enc_sim.exceptions import ProfileValidationError
+from dist_enc_sim.wire.profile_loader import ProfileTable
 
 _DEFAULT_DIR = Path(__file__).parent / "mapping"
 

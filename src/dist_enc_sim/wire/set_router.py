@@ -6,7 +6,7 @@ import logging
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 
-from ebus_emitter.exceptions import MissingSetterError
+from dist_enc_sim.exceptions import MissingSetterError
 
 _LOG = logging.getLogger(__name__)
 

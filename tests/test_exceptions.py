@@ -1,4 +1,4 @@
-from ebus_emitter.exceptions import (
+from dist_enc_sim.exceptions import (
     EmitterError,
     EmitterStateError,
     ManifestValidationError,

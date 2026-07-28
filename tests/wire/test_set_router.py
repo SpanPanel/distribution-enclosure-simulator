@@ -1,7 +1,7 @@
 import pytest
 
-from ebus_emitter.exceptions import MissingSetterError
-from ebus_emitter.wire.set_router import (
+from dist_enc_sim.exceptions import MissingSetterError
+from dist_enc_sim.wire.set_router import (
     SetSubscription,
     SetterRegistry,
     compute_subscriptions,

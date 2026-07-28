@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pytest
 
-from ebus_emitter import (
+from dist_enc_sim import (
     BESSConfig,
     BessPhysics,
     CircuitPhysics,

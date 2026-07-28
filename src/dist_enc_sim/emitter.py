@@ -14,21 +14,21 @@ from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
 
-from ebus_emitter.energy_integrator import EnergyIntegrator
-from ebus_emitter.exceptions import EmitterStateError
-from ebus_emitter.manifest import DeviceManifest
-from ebus_emitter.manifest_physics import ManifestPhysicsView
-from ebus_emitter.native_devices import (
+from dist_enc_sim.energy_integrator import EnergyIntegrator
+from dist_enc_sim.exceptions import EmitterStateError
+from dist_enc_sim.manifest import DeviceManifest
+from dist_enc_sim.manifest_physics import ManifestPhysicsView
+from dist_enc_sim.native_devices import (
     BESSConfig,
     BESSDevice,
     LoadSheddingConfig,
     LoadSheddingDevice,
     NativeTickContext,
 )
-from ebus_emitter.panel_meter import circuit_current_a
-from ebus_emitter.panel_meter import resolve as resolve_panel
-from ebus_emitter.relay_resolver import RelayResolver, RelayState
-from ebus_emitter.snapshot import (
+from dist_enc_sim.panel_meter import circuit_current_a
+from dist_enc_sim.panel_meter import resolve as resolve_panel
+from dist_enc_sim.relay_resolver import RelayResolver, RelayState
+from dist_enc_sim.snapshot import (
     EbusBatterySnapshot,
     EbusCircuitSnapshot,
     EbusEvseSnapshot,
@@ -42,15 +42,15 @@ from ebus_emitter.snapshot import (
     EbusPanelStatus,
     EbusPvSnapshot,
 )
-from ebus_emitter.tick_inputs import TickInputs
-from ebus_emitter.wire.bag_builder import BagBuilder
-from ebus_emitter.wire.graph_builder import build_graph
-from ebus_emitter.wire.lifecycle import LifecycleController
-from ebus_emitter.wire.lifecycle import lwt_settings as _lwt
-from ebus_emitter.wire.mapping_loader import load_mapping_table
-from ebus_emitter.wire.profile_loader import load_profiles
-from ebus_emitter.wire.publisher import Publisher
-from ebus_emitter.wire.set_router import SetterRegistry, compute_subscriptions
+from dist_enc_sim.tick_inputs import TickInputs
+from dist_enc_sim.wire.bag_builder import BagBuilder
+from dist_enc_sim.wire.graph_builder import build_graph
+from dist_enc_sim.wire.lifecycle import LifecycleController
+from dist_enc_sim.wire.lifecycle import lwt_settings as _lwt
+from dist_enc_sim.wire.mapping_loader import load_mapping_table
+from dist_enc_sim.wire.profile_loader import load_profiles
+from dist_enc_sim.wire.publisher import Publisher
+from dist_enc_sim.wire.set_router import SetterRegistry, compute_subscriptions
 
 
 @runtime_checkable

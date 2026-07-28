@@ -1,4 +1,4 @@
-"""Public exception hierarchy for ebus-emitter."""
+"""Public exception hierarchy for dist-enc-sim."""
 
 from __future__ import annotations
 

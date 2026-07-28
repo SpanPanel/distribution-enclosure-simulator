@@ -6,6 +6,6 @@ supporting European single-phase or 3-phase commercial panels) land here without
 rippling into ``PanelMeter``, ``EnergyIntegrator``, or per-property derivations.
 """
 
-from ebus_emitter.conventions.tab_legs import Leg, legs_for_tabs
+from dist_enc_sim.conventions.tab_legs import Leg, legs_for_tabs
 
 __all__ = ["Leg", "legs_for_tabs"]

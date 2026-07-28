@@ -14,8 +14,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Literal
 
-from ebus_emitter.native_devices.protocol import NativeTickContext
-from ebus_emitter.snapshot import EbusBatterySnapshot
+from dist_enc_sim.native_devices.protocol import NativeTickContext
+from dist_enc_sim.snapshot import EbusBatterySnapshot
 
 ChargeMode = Literal["self-consumption", "backup-only"]
 DispatchState = Literal["charging", "discharging", "idle"]

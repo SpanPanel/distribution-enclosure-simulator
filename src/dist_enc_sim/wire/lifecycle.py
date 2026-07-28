@@ -9,13 +9,13 @@ import json
 from dataclasses import dataclass, field
 from typing import Protocol, runtime_checkable
 
-from ebus_emitter.exceptions import EmitterStateError
-from ebus_emitter.manifest import DeviceManifest
-from ebus_emitter.wire.graph_builder import BuiltGraph
-from ebus_emitter.wire.mapping_loader import MappingTable
-from ebus_emitter.wire.profile_loader import ProfileTable
-from ebus_emitter.wire.set_router import SetSubscription
-from ebus_emitter.wire.wire_paths import (
+from dist_enc_sim.exceptions import EmitterStateError
+from dist_enc_sim.manifest import DeviceManifest
+from dist_enc_sim.wire.graph_builder import BuiltGraph
+from dist_enc_sim.wire.mapping_loader import MappingTable
+from dist_enc_sim.wire.profile_loader import ProfileTable
+from dist_enc_sim.wire.set_router import SetSubscription
+from dist_enc_sim.wire.wire_paths import (
     device_description_topic,
     device_state_topic,
     root_state_topic,

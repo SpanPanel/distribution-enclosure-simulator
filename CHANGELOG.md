@@ -4,7 +4,7 @@
 
 ### Added
 
-- Initial scaffolding of the `ebus-emitter` package: wire layer (manifest/mapping/profiles,
+- Initial scaffolding of the `dist-enc-sim` package: wire layer (manifest/mapping/profiles,
   graph builder, lifecycle, set router, SDK seam, property bag diff) and schedule runner
   (clock, energy package, simulated circuits, solar curve evaluation, override store,
   tick orchestration).

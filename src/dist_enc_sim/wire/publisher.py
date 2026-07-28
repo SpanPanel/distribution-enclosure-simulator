@@ -14,8 +14,8 @@ from typing import Protocol, runtime_checkable
 
 import ebus_sdk
 
-from ebus_emitter.wire.graph_builder import BuiltGraph
-from ebus_emitter.wire.property_bag import PropertyBag, PropertyDiffer
+from dist_enc_sim.wire.graph_builder import BuiltGraph
+from dist_enc_sim.wire.property_bag import PropertyBag, PropertyDiffer
 
 
 @runtime_checkable

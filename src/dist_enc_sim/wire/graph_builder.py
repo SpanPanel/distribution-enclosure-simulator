@@ -8,11 +8,11 @@ from typing import Any
 
 import ebus_sdk
 
-from ebus_emitter.exceptions import ManifestValidationError, ProfileValidationError
-from ebus_emitter.manifest import DeviceInstance, DeviceManifest
-from ebus_emitter.wire._sdk_seam import make_property
-from ebus_emitter.wire.mapping_loader import MappingDescriptor, MappingTable
-from ebus_emitter.wire.profile_loader import Profile, ProfileTable
+from dist_enc_sim.exceptions import ManifestValidationError, ProfileValidationError
+from dist_enc_sim.manifest import DeviceInstance, DeviceManifest
+from dist_enc_sim.wire._sdk_seam import make_property
+from dist_enc_sim.wire.mapping_loader import MappingDescriptor, MappingTable
+from dist_enc_sim.wire.profile_loader import Profile, ProfileTable
 
 PropertyKey = tuple[str, str, str]
 

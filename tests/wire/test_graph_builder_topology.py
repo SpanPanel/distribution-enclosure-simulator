@@ -7,10 +7,10 @@ from __future__ import annotations
 
 import pytest
 
-from ebus_emitter.exceptions import ProfileValidationError
-from ebus_emitter.manifest import DeviceInstance, DeviceManifest
-from ebus_emitter.wire.graph_builder import build_graph
-from ebus_emitter.wire.mapping_loader import (
+from dist_enc_sim.exceptions import ProfileValidationError
+from dist_enc_sim.manifest import DeviceInstance, DeviceManifest
+from dist_enc_sim.wire.graph_builder import build_graph
+from dist_enc_sim.wire.mapping_loader import (
     DiscoveryConfig,
     DisplayConfig,
     MappingDescriptor,
@@ -18,7 +18,7 @@ from ebus_emitter.wire.mapping_loader import (
     Placement,
     WireConfig,
 )
-from ebus_emitter.wire.profile_loader import (
+from dist_enc_sim.wire.profile_loader import (
     Profile,
     ProfileCapability,
     ProfileProperty,

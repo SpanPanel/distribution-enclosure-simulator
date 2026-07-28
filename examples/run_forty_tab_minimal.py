@@ -26,7 +26,7 @@ import aiomqtt
 import yaml
 from amqtt.broker import Broker  # type: ignore[import-untyped]
 
-from ebus_emitter import (
+from dist_enc_sim import (
     BESSConfig,
     DeviceInstance,
     DeviceManifest,
@@ -67,7 +67,7 @@ class RecordingAiomqttClient:
         self._client = aiomqtt.Client(
             hostname=self.host,
             port=self.port,
-            identifier="ebus-emitter-example",
+            identifier="dist-enc-sim-example",
             will=self.will,
         )
         await self._client.__aenter__()
@@ -438,7 +438,7 @@ def _normalise_inverter_type(raw: str) -> str:
 
 
 def _stable_circuit_id(source_id: str) -> str:
-    return hashlib.sha256(f"ebus-emitter-example:{source_id}".encode()).hexdigest()[:32]
+    return hashlib.sha256(f"dist-enc-sim-example:{source_id}".encode()).hexdigest()[:32]
 
 
 def _bool_str(value: bool) -> str:

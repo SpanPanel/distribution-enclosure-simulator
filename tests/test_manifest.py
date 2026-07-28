@@ -1,6 +1,6 @@
 import pytest
 
-from ebus_emitter.manifest import DeviceInstance, DeviceManifest
+from dist_enc_sim.manifest import DeviceInstance, DeviceManifest
 
 
 def _instance(

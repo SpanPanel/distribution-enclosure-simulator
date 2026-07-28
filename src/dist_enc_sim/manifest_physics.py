@@ -15,11 +15,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
-from ebus_emitter.conventions.tab_legs import Leg, legs_for_tabs
-from ebus_emitter.exceptions import ManifestValidationError
+from dist_enc_sim.conventions.tab_legs import Leg, legs_for_tabs
+from dist_enc_sim.exceptions import ManifestValidationError
 
 if TYPE_CHECKING:
-    from ebus_emitter.manifest import DeviceInstance, DeviceManifest
+    from dist_enc_sim.manifest import DeviceInstance, DeviceManifest
 
 
 # ---------------------------------------------------------------------------

@@ -1,4 +1,4 @@
-from ebus_emitter.wire.wire_paths import (
+from dist_enc_sim.wire.wire_paths import (
     device_description_topic,
     device_state_topic,
     parse_set_topic,

@@ -9,7 +9,7 @@ import json
 
 import pytest
 
-from ebus_emitter import (
+from dist_enc_sim import (
     BESSConfig,
     DeviceInstance,
     DeviceManifest,

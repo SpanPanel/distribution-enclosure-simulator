@@ -1,10 +1,10 @@
 import pytest
 
-from ebus_emitter.manifest import DeviceInstance, DeviceManifest
-from ebus_emitter.wire.graph_builder import build_graph
-from ebus_emitter.wire.lifecycle import LifecycleController, lwt_settings
-from ebus_emitter.wire.mapping_loader import load_mapping_table
-from ebus_emitter.wire.profile_loader import load_profiles
+from dist_enc_sim.manifest import DeviceInstance, DeviceManifest
+from dist_enc_sim.wire.graph_builder import build_graph
+from dist_enc_sim.wire.lifecycle import LifecycleController, lwt_settings
+from dist_enc_sim.wire.mapping_loader import load_mapping_table
+from dist_enc_sim.wire.profile_loader import load_profiles
 
 
 class FakeMqttClient:

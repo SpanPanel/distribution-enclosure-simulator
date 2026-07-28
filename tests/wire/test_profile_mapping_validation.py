@@ -2,9 +2,9 @@ from pathlib import Path
 
 import pytest
 
-from ebus_emitter.exceptions import ProfileValidationError
-from ebus_emitter.wire.mapping_loader import MappingTable, load_mapping_table
-from ebus_emitter.wire.profile_loader import ProfileTable, load_profiles
+from dist_enc_sim.exceptions import ProfileValidationError
+from dist_enc_sim.wire.mapping_loader import MappingTable, load_mapping_table
+from dist_enc_sim.wire.profile_loader import ProfileTable, load_profiles
 
 
 def test_load_profiles_returns_all_vendored() -> None:

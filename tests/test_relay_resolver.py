@@ -1,6 +1,6 @@
 import pytest
 
-from ebus_emitter.relay_resolver import RelayRequester, RelayResolver, RelayState
+from dist_enc_sim.relay_resolver import RelayRequester, RelayResolver, RelayState
 
 
 def test_default_state_is_closed_unknown() -> None:
