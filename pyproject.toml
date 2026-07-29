@@ -6,7 +6,7 @@ build-backend = "hatchling.build"
 name = "dist-enc-sim"
 version = "0.1.0"
 description = "Producer-side Homie publisher with embedded behaviour runtime for the eBus convention"
-requires-python = ">=3.14"
+requires-python = ">=3.11"
 dependencies = [
     "ebus-sdk>=0.1.5",
     "pyyaml>=6.0",
@@ -35,7 +35,7 @@ packages = ["src/dist_enc_sim"]
 "src/dist_enc_sim/wire/mapping" = "dist_enc_sim/wire/mapping"
 
 [tool.ruff]
-target-version = "py314"
+target-version = "py311"
 line-length = 99
 
 [tool.ruff.lint]
@@ -50,7 +50,7 @@ asyncio_mode = "auto"
 testpaths = ["tests"]
 
 [tool.mypy]
-python_version = "3.14"
+python_version = "3.11"
 strict = true
 
 # `paho-mqtt` and `ebus-sdk` ship without `py.typed` markers; mypy cannot resolve their
