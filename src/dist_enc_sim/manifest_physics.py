@@ -103,6 +103,20 @@ class EvsePhysics:
     feed: str | None
 
 
+@dataclass(frozen=True, slots=True)
+class MidPhysics:
+    """Microgrid Interconnect Device identity. Grid state (islanding-state /
+    grid-state / grid-forming-entity) is dynamic, derived per-tick from the
+    grid-online signal rather than parsed here."""
+
+    vendor_name: str | None
+    serial_number: str | None
+    product_name: str | None
+    model: str | None
+    firmware_version: str | None
+    hardware_version: str | None
+
+
 # ---------------------------------------------------------------------------
 # Top-level view
 # ---------------------------------------------------------------------------
@@ -140,6 +154,7 @@ class ManifestPhysicsView:
         self._bess: dict[str, BessPhysics] = {}
         self._pv: dict[str, PvPhysics] = {}
         self._evse: dict[str, EvsePhysics] = {}
+        self._mid: dict[str, MidPhysics] = {}
 
         for inst in manifest.instances:
             ec = inst.entity_class
@@ -160,6 +175,8 @@ class ManifestPhysicsView:
                     self._pv[inst.instance_id] = _parse_pv(inst)
                 elif ec == "evse":
                     self._evse[inst.instance_id] = _parse_evse(inst)
+                elif ec == "mid":
+                    self._mid[inst.instance_id] = _parse_mid(inst)
                 # Unknown entity_class: leave to graph builder to reject.
             except ManifestValidationError as exc:
                 raise ManifestValidationError(f"{ec}/{inst.instance_id}: {exc}") from exc
@@ -203,6 +220,12 @@ class ManifestPhysicsView:
 
     def all_evse(self) -> dict[str, EvsePhysics]:
         return dict(self._evse)
+
+    def mid(self, instance_id: str) -> MidPhysics:
+        return self._mid[instance_id]
+
+    def all_mid(self) -> dict[str, MidPhysics]:
+        return dict(self._mid)
 
 
 # ---------------------------------------------------------------------------
@@ -415,4 +438,16 @@ def _parse_evse(inst: DeviceInstance) -> EvsePhysics:
         firmware_version=_opt_str(md, "firmware-version") or _require(md, "software-version"),
         max_current_a=_req_float(md, "max-current-a"),
         feed=_opt_str(md, "feed") or _opt_str(md, "feed-circuit-id"),
+    )
+
+
+def _parse_mid(inst: DeviceInstance) -> MidPhysics:
+    md = inst.metadata
+    return MidPhysics(
+        vendor_name=_opt_str(md, "vendor-name"),
+        serial_number=_opt_str(md, "serial-number"),
+        product_name=_opt_str(md, "product-name"),
+        model=_opt_str(md, "model"),
+        firmware_version=_opt_str(md, "firmware-version") or _opt_str(md, "software-version"),
+        hardware_version=_opt_str(md, "hardware-version"),
     )

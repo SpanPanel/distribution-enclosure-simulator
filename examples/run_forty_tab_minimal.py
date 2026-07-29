@@ -215,6 +215,9 @@ def _build_manifest(profile: Mapping[str, object]) -> DeviceManifest:
     if pv is not None:
         instances.append(pv)
     instances.extend(_evse_instances(profile))
+    mid = _mid_instance(profile)
+    if mid is not None:
+        instances.append(mid)
     return DeviceManifest(instances=tuple(instances))
 
 
@@ -297,6 +300,24 @@ def _bess_instance(profile: Mapping[str, object]) -> DeviceInstance | None:
     return DeviceInstance("bess", str(bess.get("instance_id", "bess")), "Battery", metadata)
 
 
+def _mid_instance(profile: Mapping[str, object]) -> DeviceInstance | None:
+    """A grid-forming BESS in an islandable enclosure exposes an integrated MID
+    (the islanding authority), mirroring the live SPAN ``<bess-id>-mid`` child."""
+    bess = _optional_mapping(profile.get("bess"))
+    panel = _as_mapping(profile["panel_config"], "panel_config")
+    if not bess.get("enabled") or not panel.get("islandable"):
+        return None
+    bess_id = str(bess.get("instance_id", "bess"))
+    metadata = {"vendor-name": str(bess.get("vendor", "Span"))}
+    serial = bess.get("serial_number")
+    if serial is not None:
+        metadata["serial-number"] = f"{serial}-mid"
+    product = bess.get("mid_product_name")
+    if product is not None:
+        metadata["product-name"] = str(product)
+    return DeviceInstance("mid", f"{bess_id}-mid", "Microgrid Interconnect Device", metadata)
+
+
 def _pv_instance(profile: Mapping[str, object]) -> DeviceInstance | None:
     pv_feed = _first_feed_for_device_type(profile, "pv")
     if pv_feed is None:
@@ -332,9 +353,7 @@ def _evse_instances(profile: Mapping[str, object]) -> list[DeviceInstance]:
                     "product-name": "SPAN Drive",
                     "part-number": "SPN-DRV-001",
                     "serial-number": (
-                        f"SIM-EVSE-{panel_id}"
-                        if idx == 1
-                        else f"SIM-EVSE-{panel_id}-{idx}"
+                        f"SIM-EVSE-{panel_id}" if idx == 1 else f"SIM-EVSE-{panel_id}-{idx}"
                     ),
                     "firmware-version": str(panel.get("firmware_version", "example/v0.1.0")),
                     "max-current-a": "32.0",
@@ -380,8 +399,7 @@ def _ticks(profile: Mapping[str, object]) -> list[TickInputs]:
                 grid_online=bool(item.get("grid_online", True)),
                 circuits=circuits,
                 evse={
-                    evse_id: circuits.get(feed_id, 0.0)
-                    for evse_id, feed_id in evse_feeds.items()
+                    evse_id: circuits.get(feed_id, 0.0) for evse_id, feed_id in evse_feeds.items()
                 },
             ),
         )

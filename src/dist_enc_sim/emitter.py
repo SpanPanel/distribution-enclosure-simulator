@@ -33,6 +33,7 @@ from dist_enc_sim.snapshot import (
     EbusCircuitSnapshot,
     EbusEvseSnapshot,
     EbusLugsSnapshot,
+    EbusMidSnapshot,
     EbusPanelDoor,
     EbusPanelInfo,
     EbusPanelMeter,
@@ -115,6 +116,7 @@ class Emitter:
         self._name_overrides: dict[str, str] = {}
         self._dominant_power_source_override: str | None = None
         self._asserted_islanding_override: str | None = None
+        self._evse_user_max_override: dict[str, int] = {}
 
         for cid, cphys in self._physics.all_circuits().items():
             self._relays.register(cid, always_on=cphys.always_on)
@@ -348,12 +350,23 @@ class Emitter:
             del entity_class, instance_id, prop_path
             self._asserted_islanding_override = str(value).upper()
 
+        async def on_evse_user_max(
+            entity_class: str,
+            instance_id: str,
+            prop_path: str,
+            value: object,
+        ) -> None:
+            del entity_class, prop_path
+            self._evse_user_max_override[instance_id] = int(float(str(value)))
+
         if registry.get("circuit", "switch/relay") is None:
             registry.register("circuit", "switch/relay", on_circuit_relay)
         if registry.get("circuit", "load-shed/priority") is None:
             registry.register("circuit", "load-shed/priority", on_shed_priority)
         if registry.get("panel", "shed/asserted-islanding-state") is None:
             registry.register("panel", "shed/asserted-islanding-state", on_asserted_islanding)
+        if registry.get("evse", "config/user-max-charge-current") is None:
+            registry.register("evse", "config/user-max-charge-current", on_evse_user_max)
 
     async def _publish_diff(self, snapshot: EbusPanelSnapshot) -> None:
         bag = self._bag_builder.build(snapshot)
@@ -556,11 +569,33 @@ class Emitter:
                 status="CHARGING" if charging else "AVAILABLE",
                 lock_state="LOCKED" if charging else "UNLOCKED",
                 advertised_current_a=ephys.max_current_a,
+                max_charge_current_a=int(ephys.max_current_a),
+                user_max_charge_current_a=self._evse_user_max_override.get(
+                    eid, int(ephys.max_current_a)
+                ),
                 vendor_name=ephys.vendor_name,
                 product_name=ephys.product_name,
                 part_number=ephys.part_number,
                 serial_number=ephys.serial_number,
                 firmware_version=ephys.firmware_version,
+            )
+
+        # Step 8b: MID snapshots — the grid-forming interconnect device that a
+        # commissioned islanding BESS exposes. Identity is static; grid state is
+        # derived from the grid-online signal this tick.
+        mid_snaps: dict[str, EbusMidSnapshot] = {}
+        for mid_id, mphys in self._physics.all_mid().items():
+            mid_snaps[mid_id] = EbusMidSnapshot(
+                instance_id=mid_id,
+                vendor_name=mphys.vendor_name,
+                serial_number=mphys.serial_number,
+                product_name=mphys.product_name,
+                model=mphys.model,
+                firmware_version=mphys.firmware_version,
+                hardware_version=mphys.hardware_version,
+                islanding_state="ON_GRID" if tick.grid_online else "OFF_GRID",
+                grid_state="UP" if tick.grid_online else "DOWN",
+                grid_forming_entity="GRID" if tick.grid_online else "BESS",
             )
 
         # Step 9: assemble the panel snapshot from capability sub-dataclasses.
@@ -653,4 +688,5 @@ class Emitter:
             pv=pv_snaps,
             evse=evse_snaps,
             lugs=lugs_snaps,
+            mid=mid_snaps,
         )
