@@ -169,6 +169,11 @@ def build_graph(
         if parent_id is not None:
             payload["root"] = root_instance.instance_id
             payload["parent"] = parent_id
+        # Homie 5 parent devices advertise their direct children so a controller
+        # can discover the tree top-down (without this, only the root is found).
+        children = graph.children_of.get(device_id)
+        if children:
+            payload["children"] = list(children)
         graph.description_payloads[device_id] = payload
 
     return graph

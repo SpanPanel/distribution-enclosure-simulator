@@ -21,6 +21,7 @@ def test_build_graph_for_panel_and_one_circuit() -> None:
     assert "p1" in g.devices
     assert "c1" in g.devices
     assert g.device_descriptors["c1"] == ("circuit", "p1")
+    assert "c1" in g.description_payloads["p1"]["children"]  # parent advertises children
     # Circuit's properties are present on the child device under plain capability nodes.
     assert ("circuit", "c1", "meter/active-power") in g.properties
     assert ("circuit", "c1", "switch/relay") in g.properties

@@ -168,6 +168,7 @@ async def test_publish_tick_uses_parent_child_topic_shape(emitter_no_bess: Emitt
     assert panel_desc["type"] == "energy.ebus.device.distribution-enclosure"
     assert panel_desc["nodes"]["info"]["type"] == "energy.ebus.capability.info"
     assert "kitchen" not in panel_desc["nodes"]  # circuit is its own device now
+    assert "kitchen" in panel_desc["children"]  # enclosure advertises its child devices
 
     # Circuit is a separate child device: plain capability nodes + parent/root refs.
     circuit_desc = descriptions["ebus/5/kitchen/$description"]
