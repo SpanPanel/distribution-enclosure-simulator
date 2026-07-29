@@ -1,6 +1,8 @@
 """Lifecycle controller — owns $state, $description, /set subscription, LWT.
 
-v1_flat behaviour only; v2_children adds child-device cascade in a future major release.
+v2_children: child devices published under ``child-of-parent`` placement each
+get their own $state ready (after the root's $description round) and are torn
+down (disconnected, then retained-clear) on graceful stop, alongside the root.
 """
 
 from __future__ import annotations
@@ -81,6 +83,18 @@ class LifecycleController:
 
         for sub in self.subscriptions:
             await self.mqtt.subscribe(sub.topic_pattern)
+
+        # v2_children: each non-root (child-of-parent) device gets its own
+        # $state ready once its $description has been published above.
+        for device_id in self.graph.devices:
+            if device_id == self._root_id:
+                continue
+            await self.mqtt.publish(
+                device_state_topic(self.domain, self.bus_version, device_id),
+                b"ready",
+                qos=1,
+                retain=True,
+            )
 
         await self.mqtt.publish(
             root_state_topic(self.domain, self.bus_version, self._root_id),

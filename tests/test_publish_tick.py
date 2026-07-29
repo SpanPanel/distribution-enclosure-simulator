@@ -153,19 +153,28 @@ async def test_publish_tick_emits_circuit_power(emitter_no_bess: Emitter) -> Non
 
 
 @pytest.mark.asyncio
-async def test_publish_tick_uses_live_panel_flat_topic_shape(emitter_no_bess: Emitter) -> None:
+async def test_publish_tick_uses_parent_child_topic_shape(emitter_no_bess: Emitter) -> None:
     await emitter_no_bess.start()
     fake = emitter_no_bess._publisher._mqtt
     assert isinstance(fake, FakeMqttClient)
 
-    description_payload = next(
-        payload
+    descriptions = {
+        topic: json.loads(payload)
         for topic, payload, _qos, _retain in fake.published
-        if topic == "ebus/5/abc-123/$description"
-    )
-    description = json.loads(description_payload)
-    assert description["nodes"]["info"]["type"] == "energy.ebus.capability.info"
-    assert description["nodes"]["kitchen-switch"]["type"] == "energy.ebus.capability.switch"
+        if topic.endswith("/$description")
+    }
+    # Enclosure is the root device; its $description carries only enclosure caps.
+    panel_desc = descriptions["ebus/5/abc-123/$description"]
+    assert panel_desc["type"] == "energy.ebus.device.distribution-enclosure"
+    assert panel_desc["nodes"]["info"]["type"] == "energy.ebus.capability.info"
+    assert "kitchen" not in panel_desc["nodes"]  # circuit is its own device now
+
+    # Circuit is a separate child device: plain capability nodes + parent/root refs.
+    circuit_desc = descriptions["ebus/5/kitchen/$description"]
+    assert circuit_desc["type"] == "energy.ebus.device.circuit"
+    assert circuit_desc["root"] == "abc-123"
+    assert circuit_desc["parent"] == "abc-123"
+    assert circuit_desc["nodes"]["switch"]["type"] == "energy.ebus.capability.switch"
 
     await emitter_no_bess.publish_tick(
         TickInputs(current_time=0.0, grid_online=True, circuits={"kitchen": 500.0}),
@@ -173,9 +182,9 @@ async def test_publish_tick_uses_live_panel_flat_topic_shape(emitter_no_bess: Em
     retained = {topic: payload.decode() for topic, payload, _qos, _retain in fake.published}
     assert retained["ebus/5/abc-123/info/firmware-version"] == "sim/v0.1.0"
     assert retained["ebus/5/abc-123/pcs/grid-islandable"] == "false"
-    assert retained["ebus/5/abc-123/kitchen-meter/active-power"] == "-500.0"
-    assert retained["ebus/5/abc-123/kitchen-info/spaces"] == "1"
-    assert retained["ebus/5/abc-123/kitchen-switch/relay-requester"] == "NONE"
+    assert retained["ebus/5/kitchen/meter/active-power"] == "-500.0"
+    assert retained["ebus/5/kitchen/info/spaces"] == "1"
+    assert retained["ebus/5/kitchen/switch/relay-requester"] == "NONE"
 
 
 @pytest.mark.asyncio
@@ -302,8 +311,8 @@ async def test_circuit_active_power_wire_sign_is_inverse_of_internal_model() -> 
     retained = {topic: payload.decode() for topic, payload, _qos, _retain in fake.published}
     assert snap.circuits["kitchen"].instant_power_w == 500.0
     assert snap.circuits["solar"].instant_power_w == -2000.0
-    assert retained["ebus/5/abc-123/kitchen-meter/active-power"] == "-500.0"
-    assert retained["ebus/5/abc-123/solar-meter/active-power"] == "2000.0"
+    assert retained["ebus/5/kitchen/meter/active-power"] == "-500.0"
+    assert retained["ebus/5/solar/meter/active-power"] == "2000.0"
 
 
 @pytest.mark.asyncio

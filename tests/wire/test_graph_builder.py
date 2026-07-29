@@ -17,10 +17,11 @@ def test_build_graph_for_panel_and_one_circuit() -> None:
     profiles = load_profiles()
     mapping = load_mapping_table()
     g = build_graph(_manifest_panel_with_one_circuit(), mapping, profiles)
-    # Panel is the only Device under v1_flat node-on-parent layout.
+    # Under child-of-parent, the circuit is its own child Device beneath the panel.
     assert "p1" in g.devices
-    assert "c1" not in g.devices
-    # Circuit's properties are present, attached to the panel device under namespaced nodes.
+    assert "c1" in g.devices
+    assert g.device_descriptors["c1"] == ("circuit", "p1")
+    # Circuit's properties are present on the child device under plain capability nodes.
     assert ("circuit", "c1", "meter/active-power") in g.properties
     assert ("circuit", "c1", "switch/relay") in g.properties
 

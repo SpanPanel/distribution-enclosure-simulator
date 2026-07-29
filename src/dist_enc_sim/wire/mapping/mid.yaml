@@ -1,5 +1,5 @@
-entity_class: bess
-profile: bess.json
+entity_class: mid
+profile: mid.json
 profile_version: 1
 placement:
   kind: child-of-parent
@@ -10,7 +10,7 @@ wire:
   property_path_template: "{capability}/{property_key}"
 display:
   name_template: "{display_name}"
-  fallback_name_template: "BESS {instance_id_short}"
+  fallback_name_template: "MID {instance_id_short}"
 discovery:
   $description_owner: self
   state_owner: self

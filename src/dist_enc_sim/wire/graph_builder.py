@@ -24,6 +24,11 @@ class BuiltGraph:
     description_payloads: dict[str, dict[str, Any]] = field(default_factory=dict)
     children_of: dict[str, tuple[str, ...]] = field(default_factory=dict)
     node_types: dict[str, str] = field(default_factory=dict)
+    # Per-device capability nodes (device_id -> {node_id: node_type}) and, for
+    # each device, its (entity_class, parent_id) — parent_id is None for the
+    # root. Together these build each device's own ``$description``.
+    device_nodes: dict[str, dict[str, str]] = field(default_factory=dict)
+    device_descriptors: dict[str, tuple[str, str | None]] = field(default_factory=dict)
 
 
 def build_graph(
@@ -53,6 +58,7 @@ def build_graph(
         type=profiles[root_class].type,
     )
     graph.devices[root_instance.instance_id] = root_device
+    graph.device_descriptors[root_instance.instance_id] = (root_class, None)
 
     _attach_profile(
         root_device,
@@ -132,6 +138,7 @@ def build_graph(
                 )
                 parent_device.add_child(inst.instance_id)
                 graph.devices[inst.instance_id] = child
+                graph.device_descriptors[inst.instance_id] = (ec, parent_instance.instance_id)
                 children_acc.setdefault(parent_instance.instance_id, []).append(inst.instance_id)
                 _attach_profile(
                     child,
@@ -147,23 +154,22 @@ def build_graph(
 
     for device_id, device in graph.devices.items():
         name = device.name() if callable(device.name) else device.name
-        if device_id == root_instance.instance_id:
-            graph.description_payloads[device_id] = {
-                "homie": "5.0",
-                "version": profiles[root_class].version,
-                "type": profiles[root_class].type,
-                "name": name,
-                "id": device_id,
-                "nodes": {
-                    node_id: {"type": node_type}
-                    for node_id, node_type in sorted(graph.node_types.items())
-                },
-            }
-        else:
-            graph.description_payloads[device_id] = {
-                "name": name,
-                "id": device_id,
-            }
+        ec, parent_id = graph.device_descriptors[device_id]
+        payload: dict[str, Any] = {
+            "homie": "5.0",
+            "version": profiles[ec].version,
+            "type": profiles[ec].type,
+            "name": name,
+            "id": device_id,
+            "nodes": {
+                node_id: {"type": node_type}
+                for node_id, node_type in sorted(graph.device_nodes.get(device_id, {}).items())
+            },
+        }
+        if parent_id is not None:
+            payload["root"] = root_instance.instance_id
+            payload["parent"] = parent_id
+        graph.description_payloads[device_id] = payload
 
     return graph
 
@@ -245,6 +251,9 @@ def _attach_profile(
     ID so multiple circuits/lugs/etc. coexist on the parent without collision.
     """
     single_capability = len(profile.capabilities) == 1
+    target_device_id = (
+        instance.instance_id if parent_for_path is None else parent_for_path.instance_id
+    )
     for cap_name, cap in profile.capabilities.items():
         if parent_for_path is None:
             node_id = cap_name
@@ -252,6 +261,7 @@ def _attach_profile(
             node_prefix = _render_node_id(node_id_template or "{instance_id}", instance)
             node_id = node_prefix if single_capability else f"{node_prefix}-{cap_name}"
         graph.node_types[node_id] = cap.type
+        graph.device_nodes.setdefault(target_device_id, {})[node_id] = cap.type
         node = device.add_node_from_dict(
             {
                 "id": node_id,
