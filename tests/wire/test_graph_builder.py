@@ -21,8 +21,8 @@ def test_build_graph_for_panel_and_one_circuit() -> None:
     assert "p1" in g.devices
     assert "c1" not in g.devices
     # Circuit's properties are present, attached to the panel device under namespaced nodes.
-    assert ("circuit", "c1", "circuit/active-power") in g.properties
-    assert ("circuit", "c1", "circuit/relay") in g.properties
+    assert ("circuit", "c1", "meter/active-power") in g.properties
+    assert ("circuit", "c1", "switch/relay") in g.properties
 
 
 def test_build_graph_is_deterministic() -> None:
@@ -38,4 +38,4 @@ def test_build_graph_includes_panel_settable_property() -> None:
     profiles = load_profiles()
     mapping = load_mapping_table()
     g = build_graph(_manifest_panel_with_one_circuit(), mapping, profiles)
-    assert ("panel", "p1", "core/dominant-power-source") in g.properties
+    assert ("panel", "p1", "shed/asserted-islanding-state") in g.properties

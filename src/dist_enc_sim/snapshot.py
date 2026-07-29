@@ -51,6 +51,13 @@ class EbusCircuitSnapshot:
     energy_accum_update_time_s: int = 0
     instant_power_update_time_s: int = 0
 
+    # ``connection`` capability — downstream topology edge, populated once the
+    # parent-child wire flip assembles the site graph; None in the flat model.
+    feeds_device_id: str | None = None
+    feeds_device_type: str | None = None
+    feeds_device_status: str | None = None
+    feeds_count: int | None = None
+
 
 @dataclass(slots=True)
 class EbusPvSnapshot:
@@ -75,6 +82,8 @@ class EbusEvseSnapshot:
     status: str = "UNKNOWN"
     lock_state: str = "UNKNOWN"
     advertised_current_a: float | None = None
+    max_charge_current_a: int | None = None
+    user_max_charge_current_a: int | None = None
 
     vendor_name: str | None = None
     product_name: str | None = None
@@ -118,6 +127,31 @@ class EbusLugsSnapshot:
     imported_energy_wh: float = 0.0
     exported_energy_wh: float = 0.0
 
+    # ``connection`` capability — upstream (fed-by) and downstream (feeds) edges.
+    fed_by_device_id: str | None = None
+    fed_by_device_type: str | None = None
+    fed_by_device_status: str | None = None
+    feeds_device_id: str | None = None
+    feeds_device_type: str | None = None
+    feeds_device_status: str | None = None
+    connection_count: int | None = None
+
+
+@dataclass(slots=True)
+class EbusMidSnapshot:
+    """Microgrid Interconnect Device (MID) — ``info`` + ``grid`` capabilities."""
+
+    instance_id: str
+    vendor_name: str | None = None
+    serial_number: str | None = None
+    product_name: str | None = None
+    model: str | None = None
+    firmware_version: str | None = None
+    hardware_version: str | None = None
+    islanding_state: str = "UNKNOWN"
+    grid_state: str = "UNKNOWN"
+    grid_forming_entity: str | None = None
+
 
 # ---------------------------------------------------------------------------
 # Panel capability sub-dataclasses — one per capability node on the panel
@@ -137,6 +171,7 @@ class EbusPanelInfo:
     panel_size: int = 0
     panel_model: str | None = None
     schema_topology: Literal["flat", "parent-child"] = "flat"
+    data_model_version: str = "1.0"
 
 
 @dataclass(slots=True)
@@ -189,6 +224,7 @@ class EbusPanelPcs:
 
     main_breaker_rating_a: int | None = None
     grid_islandable: bool | None = None
+    binding_constraint: str = "NONE"
     dominant_power_source: str | None = None
     grid_state: str | None = None
     dsm_state: str = "DSM_ON_GRID"
@@ -199,9 +235,9 @@ class EbusPanelPcs:
     feed_import_limit_a: float = 0.0
     feed_import_limit_enablement: str = "UNCONFIGURED"
     feed_import_limit_active: bool = False
-    grid_import_limit_a: float = 0.0
-    grid_import_limit_enablement: str = "UNCONFIGURED"
-    grid_import_limit_active: bool = False
+    operator_import_limit_a: float = 0.0
+    operator_import_limit_enablement: str = "UNCONFIGURED"
+    operator_import_limit_active: bool = False
     off_grid_import_limit_a: float = 0.0
     off_grid_import_limit_enablement: str = "UNCONFIGURED"
     off_grid_import_limit_active: bool = False
@@ -221,6 +257,29 @@ class EbusPanelPowerFlows:
 
 
 @dataclass(slots=True)
+class EbusPanelShed:
+    """``shed`` capability node — consumer islanding override + shed policy."""
+
+    asserted_islanding_state: str = "NONE"
+    policy: str | None = None
+
+
+@dataclass(slots=True)
+class EbusPanelShedForecast:
+    """``shed-forecast`` capability node — off-grid runtime estimates.
+
+    These are simulator dynamics: None until the runtime model drives them, in
+    which case the property's retained topic is simply not published (Homie 5
+    permits a property to have no value yet)."""
+
+    total_time_remaining: int | None = None
+    time_to_priority_shed: int | None = None
+    full_charge_total_time_remaining: int | None = None
+    full_charge_time_to_priority_shed: int | None = None
+    confidence: str | None = None
+
+
+@dataclass(slots=True)
 class EbusPanelSnapshot:
     """Complete panel state — single point-in-time view.
 
@@ -234,8 +293,11 @@ class EbusPanelSnapshot:
     status: EbusPanelStatus = field(default_factory=EbusPanelStatus)
     pcs: EbusPanelPcs = field(default_factory=EbusPanelPcs)
     power_flows: EbusPanelPowerFlows = field(default_factory=EbusPanelPowerFlows)
+    shed: EbusPanelShed = field(default_factory=EbusPanelShed)
+    shed_forecast: EbusPanelShedForecast = field(default_factory=EbusPanelShedForecast)
     circuits: dict[str, EbusCircuitSnapshot] = field(default_factory=dict)
     battery: dict[str, EbusBatterySnapshot] = field(default_factory=dict)
     pv: dict[str, EbusPvSnapshot] = field(default_factory=dict)
     evse: dict[str, EbusEvseSnapshot] = field(default_factory=dict)
     lugs: dict[str, EbusLugsSnapshot] = field(default_factory=dict)
+    mid: dict[str, EbusMidSnapshot] = field(default_factory=dict)

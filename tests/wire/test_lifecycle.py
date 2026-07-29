@@ -105,7 +105,7 @@ async def test_graceful_stop_can_clear_retained_topics() -> None:
     }
     assert "ebus/5/p1/$state" in tombstones
     assert "ebus/5/p1/$description" in tombstones
-    assert "ebus/5/p1/c1/active-power" in tombstones
+    assert "ebus/5/p1/c1-meter/active-power" in tombstones
 
 
 @pytest.mark.asyncio

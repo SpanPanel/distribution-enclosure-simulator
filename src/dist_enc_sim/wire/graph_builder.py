@@ -289,6 +289,7 @@ def _to_sdk_datatype(dt: str) -> ebus_sdk.PropertyDatatype:
         "float": ebus_sdk.PropertyDatatype.FLOAT,
         "boolean": ebus_sdk.PropertyDatatype.BOOLEAN,
         "enum": ebus_sdk.PropertyDatatype.ENUM,
+        "json": getattr(ebus_sdk.PropertyDatatype, "JSON", ebus_sdk.PropertyDatatype.STRING),
     }
     return mapping.get(dt.lower(), ebus_sdk.PropertyDatatype.STRING)
 

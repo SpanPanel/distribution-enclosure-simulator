@@ -38,6 +38,7 @@ from dist_enc_sim.snapshot import (
     EbusPanelMeter,
     EbusPanelPcs,
     EbusPanelPowerFlows,
+    EbusPanelShed,
     EbusPanelSnapshot,
     EbusPanelStatus,
     EbusPvSnapshot,
@@ -113,6 +114,7 @@ class Emitter:
         self._priority_overrides: dict[str, str] = {}
         self._name_overrides: dict[str, str] = {}
         self._dominant_power_source_override: str | None = None
+        self._asserted_islanding_override: str | None = None
 
         for cid, cphys in self._physics.all_circuits().items():
             self._relays.register(cid, always_on=cphys.always_on)
@@ -302,10 +304,10 @@ class Emitter:
     # ---- internal --------------------------------------------------------
 
     def _register_internal_setters(self, registry: SetterRegistry) -> None:
-        """Register default handlers for the four settable properties when the
+        """Register default handlers for the settable properties when the
         producer hasn't already supplied one. The handlers update emitter-
-        internal state (RelayResolver, priority/name override maps, panel
-        dominant-power-source override). The next ``publish_tick`` call reflects
+        internal state (RelayResolver, the priority override map, the panel
+        asserted-islanding override). The next ``publish_tick`` call reflects
         the change on the wire.
 
         Producers needing custom routing register their own handler before
@@ -337,32 +339,21 @@ class Emitter:
             del entity_class, prop_path
             self._priority_overrides[instance_id] = str(value).upper()
 
-        async def on_circuit_name(
-            entity_class: str,
-            instance_id: str,
-            prop_path: str,
-            value: object,
-        ) -> None:
-            del entity_class, prop_path
-            self._name_overrides[instance_id] = str(value)
-
-        async def on_dom_power_source(
+        async def on_asserted_islanding(
             entity_class: str,
             instance_id: str,
             prop_path: str,
             value: object,
         ) -> None:
             del entity_class, instance_id, prop_path
-            self._dominant_power_source_override = str(value).upper()
+            self._asserted_islanding_override = str(value).upper()
 
-        if registry.get("circuit", "circuit/relay") is None:
-            registry.register("circuit", "circuit/relay", on_circuit_relay)
-        if registry.get("circuit", "circuit/shed-priority") is None:
-            registry.register("circuit", "circuit/shed-priority", on_shed_priority)
-        if registry.get("circuit", "circuit/name") is None:
-            registry.register("circuit", "circuit/name", on_circuit_name)
-        if registry.get("panel", "core/dominant-power-source") is None:
-            registry.register("panel", "core/dominant-power-source", on_dom_power_source)
+        if registry.get("circuit", "switch/relay") is None:
+            registry.register("circuit", "switch/relay", on_circuit_relay)
+        if registry.get("circuit", "load-shed/priority") is None:
+            registry.register("circuit", "load-shed/priority", on_shed_priority)
+        if registry.get("panel", "shed/asserted-islanding-state") is None:
+            registry.register("panel", "shed/asserted-islanding-state", on_asserted_islanding)
 
     async def _publish_diff(self, snapshot: EbusPanelSnapshot) -> None:
         bag = self._bag_builder.build(snapshot)
@@ -641,6 +632,13 @@ class Emitter:
             grid=meter.power_flow_grid,
             site=meter.power_flow_site,
         )
+        shed = EbusPanelShed(
+            asserted_islanding_state=self._asserted_islanding_override or "NONE",
+            policy=(
+                '{"algorithm": "soc-priority.v1", '
+                '"parameters": {"soc-threshold-shed": 20, "soc-threshold-release": 30}}'
+            ),
+        )
 
         return EbusPanelSnapshot(
             info=info,
@@ -649,6 +647,7 @@ class Emitter:
             status=status,
             pcs=pcs,
             power_flows=power_flows,
+            shed=shed,
             circuits=circuit_snaps,
             battery=battery_snapshots,
             pv=pv_snaps,

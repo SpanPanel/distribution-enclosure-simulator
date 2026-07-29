@@ -105,10 +105,9 @@ def _registry() -> SetterRegistry:
     async def _noop(entity_class: str, instance_id: str, prop: str, value: object) -> None:
         del entity_class, instance_id, prop, value
 
-    setters.register("circuit", "circuit/relay", _noop)
-    setters.register("circuit", "circuit/shed-priority", _noop)
-    setters.register("circuit", "circuit/name", _noop)
-    setters.register("panel", "core/dominant-power-source", _noop)
+    setters.register("circuit", "switch/relay", _noop)
+    setters.register("circuit", "load-shed/priority", _noop)
+    setters.register("panel", "shed/asserted-islanding-state", _noop)
     return setters
 
 
@@ -165,20 +164,18 @@ async def test_publish_tick_uses_live_panel_flat_topic_shape(emitter_no_bess: Em
         if topic == "ebus/5/abc-123/$description"
     )
     description = json.loads(description_payload)
-    assert description["nodes"]["core"]["type"] == (
-        "energy.ebus.device.distribution-enclosure.core"
-    )
-    assert description["nodes"]["kitchen"]["type"] == "energy.ebus.device.circuit"
+    assert description["nodes"]["info"]["type"] == "energy.ebus.capability.info"
+    assert description["nodes"]["kitchen-switch"]["type"] == "energy.ebus.capability.switch"
 
     await emitter_no_bess.publish_tick(
         TickInputs(current_time=0.0, grid_online=True, circuits={"kitchen": 500.0}),
     )
     retained = {topic: payload.decode() for topic, payload, _qos, _retain in fake.published}
-    assert retained["ebus/5/abc-123/core/software-version"] == "sim/v0.1.0"
-    assert retained["ebus/5/abc-123/core/grid-islandable"] == "false"
-    assert retained["ebus/5/abc-123/kitchen/active-power"] == "-500.0"
-    assert retained["ebus/5/abc-123/kitchen/space"] == "1"
-    assert retained["ebus/5/abc-123/kitchen/relay-requester"] == "NONE"
+    assert retained["ebus/5/abc-123/info/firmware-version"] == "sim/v0.1.0"
+    assert retained["ebus/5/abc-123/pcs/grid-islandable"] == "false"
+    assert retained["ebus/5/abc-123/kitchen-meter/active-power"] == "-500.0"
+    assert retained["ebus/5/abc-123/kitchen-info/spaces"] == "1"
+    assert retained["ebus/5/abc-123/kitchen-switch/relay-requester"] == "NONE"
 
 
 @pytest.mark.asyncio
@@ -305,8 +302,8 @@ async def test_circuit_active_power_wire_sign_is_inverse_of_internal_model() -> 
     retained = {topic: payload.decode() for topic, payload, _qos, _retain in fake.published}
     assert snap.circuits["kitchen"].instant_power_w == 500.0
     assert snap.circuits["solar"].instant_power_w == -2000.0
-    assert retained["ebus/5/abc-123/kitchen/active-power"] == "-500.0"
-    assert retained["ebus/5/abc-123/solar/active-power"] == "2000.0"
+    assert retained["ebus/5/abc-123/kitchen-meter/active-power"] == "-500.0"
+    assert retained["ebus/5/abc-123/solar-meter/active-power"] == "2000.0"
 
 
 @pytest.mark.asyncio
@@ -408,7 +405,7 @@ async def test_load_shed_off_grid_opens_off_grid_priority_circuit() -> None:
     )
     # OFF_GRID priority shed regardless of SOC.
     assert snap.circuits["hot_tub"].relay_state == "OPEN"
-    assert snap.circuits["hot_tub"].relay_requester == "BACKUP"
+    assert snap.circuits["hot_tub"].relay_requester == "LOAD_SHED"
     assert snap.circuits["hot_tub"].instant_power_w == 0.0
     # MUST_HAVE not shed.
     assert snap.circuits["fridge"].relay_state == "CLOSED"
@@ -451,7 +448,7 @@ async def test_load_shed_soc_threshold_only_when_soc_low() -> None:
         TickInputs(current_time=1.0, grid_online=False, circuits={"ev": 7000.0}),
     )
     assert snap_low.circuits["ev"].relay_state == "OPEN"
-    assert snap_low.circuits["ev"].relay_requester == "BACKUP"
+    assert snap_low.circuits["ev"].relay_requester == "LOAD_SHED"
 
 
 @pytest.mark.asyncio
@@ -518,7 +515,7 @@ async def test_always_on_beats_load_shed() -> None:
     )
     # Always-on cannot open regardless.
     assert snap.circuits["smoke_alarm"].relay_state == "CLOSED"
-    assert snap.circuits["smoke_alarm"].relay_requester == "NEVER"
+    assert snap.circuits["smoke_alarm"].relay_requester == "CONFIGURATION"
     assert snap.circuits["smoke_alarm"].instant_power_w == 50.0
 
 
@@ -561,15 +558,14 @@ async def test_shed_clears_when_grid_recovers() -> None:
 @pytest.mark.asyncio
 async def test_internal_setters_registered_when_no_producer_handler() -> None:
     """Producer can pass an empty SetterRegistry — Emitter fills in defaults
-    for the four settable properties from its own internal state."""
+    for the settable properties from its own internal state."""
     manifest = DeviceManifest(instances=(_panel_inst(), _circuit_inst()))
     setters = SetterRegistry()
     em = Emitter(manifest, setters, FakeMqttClient())
-    # All four required handlers should now be present.
-    assert setters.get("circuit", "circuit/relay") is not None
-    assert setters.get("circuit", "circuit/shed-priority") is not None
-    assert setters.get("circuit", "circuit/name") is not None
-    assert setters.get("panel", "core/dominant-power-source") is not None
+    # All required handlers should now be present.
+    assert setters.get("circuit", "switch/relay") is not None
+    assert setters.get("circuit", "load-shed/priority") is not None
+    assert setters.get("panel", "shed/asserted-islanding-state") is not None
     del em  # silence unused
 
 
@@ -580,33 +576,16 @@ async def test_internal_relay_setter_routes_to_relay_resolver() -> None:
     em = Emitter(manifest, setters, FakeMqttClient())
     await em.start()
 
-    # Simulate /set circuit/relay = false (open).
-    handler = setters.get("circuit", "circuit/relay")
+    # Simulate /set switch/relay = false (open).
+    handler = setters.get("circuit", "switch/relay")
     assert handler is not None
-    await handler("circuit", "kitchen", "circuit/relay", False)
+    await handler("circuit", "kitchen", "switch/relay", False)
 
     snap = await em.publish_tick(
         TickInputs(current_time=0.0, grid_online=True, circuits={"kitchen": 1000.0}),
     )
     assert snap.circuits["kitchen"].relay_state == "OPEN"
     assert snap.circuits["kitchen"].instant_power_w == 0.0
-
-
-@pytest.mark.asyncio
-async def test_internal_name_setter_overrides_display_name() -> None:
-    manifest = DeviceManifest(instances=(_panel_inst(), _circuit_inst()))
-    setters = SetterRegistry()
-    em = Emitter(manifest, setters, FakeMqttClient())
-    await em.start()
-
-    handler = setters.get("circuit", "circuit/name")
-    assert handler is not None
-    await handler("circuit", "kitchen", "circuit/name", "Kitchen Lights")
-
-    snap = await em.publish_tick(
-        TickInputs(current_time=0.0, grid_online=True, circuits={"kitchen": 1000.0}),
-    )
-    assert snap.circuits["kitchen"].name == "Kitchen Lights"
 
 
 @pytest.mark.asyncio
@@ -642,38 +621,15 @@ async def test_internal_priority_setter_changes_shed_decision() -> None:
     assert snap.circuits["ev"].relay_state == "CLOSED"
 
     # Operator changes priority to OFF_GRID.
-    handler = setters.get("circuit", "circuit/shed-priority")
+    handler = setters.get("circuit", "load-shed/priority")
     assert handler is not None
-    await handler("circuit", "ev", "circuit/shed-priority", "OFF_GRID")
+    await handler("circuit", "ev", "load-shed/priority", "OFF_GRID")
 
     snap2 = await em.publish_tick(
         TickInputs(current_time=1.0, grid_online=False, circuits={"ev": 7000.0}),
     )
     assert snap2.circuits["ev"].relay_state == "OPEN"
     assert snap2.circuits["ev"].priority == "OFF_GRID"
-
-
-@pytest.mark.asyncio
-async def test_internal_dom_power_source_setter_overrides_meter() -> None:
-    manifest = DeviceManifest(instances=(_panel_inst(), _circuit_inst()))
-    setters = SetterRegistry()
-    em = Emitter(manifest, setters, FakeMqttClient())
-    await em.start()
-
-    # Default on-grid → GRID
-    snap1 = await em.publish_tick(
-        TickInputs(current_time=0.0, grid_online=True, circuits={"kitchen": 100.0}),
-    )
-    assert snap1.pcs.dominant_power_source == "GRID"
-
-    handler = setters.get("panel", "core/dominant-power-source")
-    assert handler is not None
-    await handler("panel", "abc-123", "core/dominant-power-source", "BATTERY")
-
-    snap2 = await em.publish_tick(
-        TickInputs(current_time=1.0, grid_online=True, circuits={"kitchen": 100.0}),
-    )
-    assert snap2.pcs.dominant_power_source == "BATTERY"
 
 
 @pytest.mark.asyncio
@@ -692,11 +648,11 @@ async def test_producer_handler_takes_precedence_over_internal() -> None:
 
     manifest = DeviceManifest(instances=(_panel_inst(), _circuit_inst()))
     setters = SetterRegistry()
-    setters.register("circuit", "circuit/relay", producer_handler)
+    setters.register("circuit", "switch/relay", producer_handler)
     em = Emitter(manifest, setters, FakeMqttClient())
     await em.start()
 
-    handler = setters.get("circuit", "circuit/relay")
+    handler = setters.get("circuit", "switch/relay")
     assert handler is producer_handler
     await handler("circuit", "kitchen", "circuit/relay", True)
     assert captured == ["True"]

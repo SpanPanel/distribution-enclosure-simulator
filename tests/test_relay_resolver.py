@@ -6,13 +6,13 @@ from dist_enc_sim.relay_resolver import RelayRequester, RelayResolver, RelayStat
 def test_default_state_is_closed_unknown() -> None:
     rr = RelayResolver()
     rr.register("c1", always_on=False)
-    assert rr.state("c1") == (RelayState.CLOSED, RelayRequester.UNKNOWN)
+    assert rr.state("c1") == (RelayState.CLOSED, RelayRequester.NONE)
 
 
 def test_always_on_resolves_closed_never() -> None:
     rr = RelayResolver()
     rr.register("dryer", always_on=True)
-    assert rr.state("dryer") == (RelayState.CLOSED, RelayRequester.NEVER)
+    assert rr.state("dryer") == (RelayState.CLOSED, RelayRequester.CONFIGURATION)
 
 
 def test_user_override_open_wins_over_default() -> None:
@@ -48,14 +48,14 @@ def test_clear_user_override_falls_back_to_shed() -> None:
     rr.set_user_override("c1", RelayState.CLOSED)
     rr.clear_user_override("c1")
     # Without /set override, shed re-asserts.
-    assert rr.state("c1") == (RelayState.OPEN, RelayRequester.BACKUP)
+    assert rr.state("c1") == (RelayState.OPEN, RelayRequester.LOAD_SHED)
 
 
 def test_shed_only_no_override_resolves_open_backup() -> None:
     rr = RelayResolver()
     rr.register("c1", always_on=False)
     rr.set_shed("c1", open_relay=True)
-    assert rr.state("c1") == (RelayState.OPEN, RelayRequester.BACKUP)
+    assert rr.state("c1") == (RelayState.OPEN, RelayRequester.LOAD_SHED)
 
 
 def test_always_on_ignores_user_override_open() -> None:
@@ -63,14 +63,14 @@ def test_always_on_ignores_user_override_open() -> None:
     rr.register("dryer", always_on=True)
     rr.set_user_override("dryer", RelayState.OPEN)
     # Silently dropped. Always-on remains CLOSED with NEVER requester.
-    assert rr.state("dryer") == (RelayState.CLOSED, RelayRequester.NEVER)
+    assert rr.state("dryer") == (RelayState.CLOSED, RelayRequester.CONFIGURATION)
 
 
 def test_always_on_ignores_shed() -> None:
     rr = RelayResolver()
     rr.register("dryer", always_on=True)
     rr.set_shed("dryer", open_relay=True)
-    assert rr.state("dryer") == (RelayState.CLOSED, RelayRequester.NEVER)
+    assert rr.state("dryer") == (RelayState.CLOSED, RelayRequester.CONFIGURATION)
 
 
 def test_clear_all_shed_resets_only_shed() -> None:
@@ -82,7 +82,7 @@ def test_clear_all_shed_resets_only_shed() -> None:
     rr.set_user_override("c1", RelayState.OPEN)
     rr.clear_all_shed()
     assert rr.state("c1") == (RelayState.OPEN, RelayRequester.USER)
-    assert rr.state("c2") == (RelayState.CLOSED, RelayRequester.UNKNOWN)
+    assert rr.state("c2") == (RelayState.CLOSED, RelayRequester.NONE)
 
 
 def test_unregistered_instance_set_user_override_raises() -> None:
@@ -113,7 +113,7 @@ def test_register_can_change_always_on() -> None:
     rr.register("c1", always_on=True)
     # Newly always-on: /set is silently dropped on next set; existing override
     # remains in the map but state() honors always-on precedence.
-    assert rr.state("c1") == (RelayState.CLOSED, RelayRequester.NEVER)
+    assert rr.state("c1") == (RelayState.CLOSED, RelayRequester.CONFIGURATION)
 
 
 def test_known_returns_true_after_register() -> None:

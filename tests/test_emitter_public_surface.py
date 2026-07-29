@@ -142,10 +142,9 @@ def test_emitter_init_fills_in_default_setter_handlers() -> None:
     SetterRegistry no longer triggers MissingSetterError."""
     setters = SetterRegistry()
     Emitter(_manifest(), setters, FakeMqttClient())
-    assert setters.get("circuit", "circuit/relay") is not None
-    assert setters.get("circuit", "circuit/shed-priority") is not None
-    assert setters.get("circuit", "circuit/name") is not None
-    assert setters.get("panel", "core/dominant-power-source") is not None
+    assert setters.get("circuit", "switch/relay") is not None
+    assert setters.get("circuit", "load-shed/priority") is not None
+    assert setters.get("panel", "shed/asserted-islanding-state") is not None
 
 
 @pytest.mark.asyncio

@@ -74,11 +74,11 @@ discovery:
 def test_settable_properties_circuit_includes_relay_and_priority() -> None:
     profiles = load_profiles()
     settables = profiles["circuit"].settable_properties()
-    assert ("circuit", "relay") in settables
-    assert ("circuit", "shed-priority") in settables
+    assert ("switch", "relay") in settables
+    assert ("load-shed", "priority") in settables
 
 
-def test_settable_properties_panel_includes_dominant_power_source() -> None:
+def test_settable_properties_panel_includes_asserted_islanding_state() -> None:
     profiles = load_profiles()
     settables = profiles["panel"].settable_properties()
-    assert ("core", "dominant-power-source") in settables
+    assert ("shed", "asserted-islanding-state") in settables

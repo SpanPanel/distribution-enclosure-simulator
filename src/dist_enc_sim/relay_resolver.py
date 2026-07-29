@@ -14,16 +14,17 @@ Precedence (highest wins):
 
     always-on > /set override > load-shed > default-CLOSED
 
-``relay_requester`` reflects the source of the active decision:
-- ``NEVER`` for always-on (the relay is physically incapable of opening)
+``relay_requester`` reflects the source of the active decision, using the
+canonical eBus ``switch/relay-requester`` domain:
+- ``CONFIGURATION`` for always-on (commissioned; the relay cannot open)
 - ``USER`` for /set
-- ``BACKUP`` for load-shed
-- ``UNKNOWN`` for the default-CLOSED state
+- ``LOAD_SHED`` for load-shed
+- ``NONE`` for the default-CLOSED state
 
 The producer never sees /set commands. ``Emitter`` registers internal handlers
-for ``circuit.switch/relay``, ``circuit.priority/shed-priority``, and
-``circuit.info/name``; those handlers call ``RelayResolver.set_user_override``
-(and the priority equivalent on a sibling state map)."""
+for ``circuit.switch/relay`` and ``circuit.load-shed/priority``; those handlers
+call ``RelayResolver.set_user_override`` (and the priority equivalent on a
+sibling state map)."""
 
 from __future__ import annotations
 
@@ -36,10 +37,12 @@ class RelayState(StrEnum):
 
 
 class RelayRequester(StrEnum):
-    NEVER = "NEVER"  # always-on circuit; cannot open
+    # Canonical eBus ``switch/relay-requester`` domain.
+    CONFIGURATION = "CONFIGURATION"  # always-on circuit; commissioned, cannot open
     USER = "USER"  # /set override active
-    BACKUP = "BACKUP"  # load-shed in effect
-    UNKNOWN = "UNKNOWN"  # default-CLOSED, no decision-maker
+    LOAD_SHED = "LOAD_SHED"  # load-shed in effect
+    NONE = "NONE"  # default-CLOSED, no active requester
+    UNKNOWN = "UNKNOWN"  # unregistered / indeterminate
 
 
 class RelayResolver:
@@ -98,13 +101,13 @@ class RelayResolver:
     def state(self, instance_id: str) -> tuple[RelayState, RelayRequester]:
         """Resolve the final state for ``instance_id``."""
         if self._always_on.get(instance_id, False):
-            return RelayState.CLOSED, RelayRequester.NEVER
+            return RelayState.CLOSED, RelayRequester.CONFIGURATION
         override = self._user_overrides.get(instance_id)
         if override is not None:
             return override, RelayRequester.USER
         if self._shed.get(instance_id, False):
-            return RelayState.OPEN, RelayRequester.BACKUP
-        return RelayState.CLOSED, RelayRequester.UNKNOWN
+            return RelayState.OPEN, RelayRequester.LOAD_SHED
+        return RelayState.CLOSED, RelayRequester.NONE
 
     def known(self, instance_id: str) -> bool:
         return instance_id in self._always_on
