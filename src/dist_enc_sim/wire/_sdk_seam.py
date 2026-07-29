@@ -1,9 +1,9 @@
-"""Internal seam over ebus_sdk.property.
+"""Internal seam over ebus_sdk property construction.
 
-Localises every property-construction and property-mutation call so that future SDK
-changes to property.py touch one file. NOT an abstraction layer — other modules pass
-ebus_sdk.Property instances around directly. The seam only owns construction and
-mutation.
+Localises Property construction so a future SDK change to the property-dict
+shape touches one file. NOT an abstraction layer: other modules hold and mutate
+``ebus_sdk.Property`` instances directly (the publisher calls ``Property.set_value``;
+the SDK owns ``/set`` decode and value encoding).
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ def make_property(
     format_str: str | None,
     settable: bool,
 ) -> ebus_sdk.Property:
-    """Construct an ebus_sdk.Property and attach it to a node."""
+    """Construct an ebus_sdk.Property from a profile property and attach it to a node."""
     spec: dict[str, Any] = {
         "id": key,
         "name": name,
@@ -37,21 +37,3 @@ def make_property(
     if settable:
         spec["settable"] = True
     return node.add_property_from_dict(spec)
-
-
-async def set_property_value(prop: ebus_sdk.Property, value: object) -> None:
-    """Set a property value. Async-only signature — forward-compat hedge against any
-    future SDK change to make set_value async."""
-    # The current SDK exposes value via the Property's set/get; use coerced_value as
-    # the assignment target consistent with as_dict round-trip semantics.
-    if hasattr(prop, "set_value"):
-        prop.set_value(value)
-    else:
-        prop.coerced_value = value
-
-
-def settable_handler_signature(prop: ebus_sdk.Property) -> tuple[type, ...]:
-    """SDK introspection used by set_router for handler validation. The current SDK
-    delivers /set values as strings; set_router decodes per profile datatype."""
-    _ = prop
-    return (str,)

@@ -4,7 +4,7 @@ Internals of the emitter. For what it is and how to run/configure it, see [READM
 
 ## The per-tick pipeline
 
-The producer builds a `DeviceManifest` (identity plus physics keys per device) at startup and hands it to `Emitter` along with optional `BESSConfig` and `LoadSheddingConfig`. Each tick the producer builds a `TickInputs` (signed power per circuit, current time, grid-online flag, panel envelope) and calls `emitter.publish_tick(tick_inputs)`. Inside, the emitter:
+The producer builds a `DeviceManifest` (identity plus physics keys per device) at startup and hands it to `Emitter` together with a `SetterRegistry`, an `mqtt_cfg` (the broker coordinates ebus-sdk connects with), zero or more `BESSConfig`s, and an optional `LoadSheddingConfig`. Each tick the producer builds a `TickInputs` (signed power per circuit, current time, grid-online flag, panel envelope) and calls `emitter.publish_tick(tick_inputs)`. Inside, the emitter:
 
 1. Resolves BESS dispatch (charge/discharge/idle) for every native BESS.
 2. Decides load-shedding (which circuits open when off-grid).
@@ -17,7 +17,7 @@ The producer builds a `DeviceManifest` (identity plus physics keys per device) a
 
 The enclosure is a Homie root device (`energy.ebus.device.distribution-enclosure`); every circuit, lugs pair, and integrated DER (BESS, PV, EVSE, MID) is a separate child Homie device with `root` and `parent` back-references to the enclosure. Each device's properties are grouped into capability-typed nodes (`info`, `meter`, `switch`, `breaker`, `load-shed`, `pcs`, `connection`, `status`, `door`, `soc`, `shed`, `shed-forecast`, `grid`, `config`, `power-flows`), whose node `$type` is `energy.ebus.capability.<capability>`. A child device therefore publishes under its own topic root, for example `ebus/5/<circuit-id>/switch/relay` and `ebus/5/<bess-id>-mid/grid/islanding-state`.
 
-Placement is declarative. Each `wire/mapping/*.yaml` descriptor says whether its device class is the `root-device` or a `child-of-parent`; `graph_builder` walks the manifest, mappings, and profiles to build the SDK device graph, and `lifecycle` manages the `$state` cascade (root and each child go `init` then `ready`; on graceful stop they go `disconnected`, then their retained topics are cleared). The vendored `wire/profiles/*.json` are the schema (capabilities, properties, datatypes, units, `$format`, settability); `bag_builder` maps each profile-declared property to a snapshot accessor and fails loud at construction if any declared property has no source.
+Placement is declarative. Each `wire/mapping/*.yaml` descriptor says whether its device class is the `root-device` or a `child-of-parent`; `graph_builder` walks the manifest, mappings, and profiles to build the SDK device graph, and the SDK's `Device` owns the `$state` cascade: `graph_builder` wraps each device's node/property build in a `state_transition()` that coalesces the description republish into a single `init` then `ready` cycle, while `Emitter.start()`/`stop()` drive connect and disconnect. A graceful `stop()` publishes only the root's `$state=disconnected` (by Homie's effective-state rule that covers every child); an ungraceful drop leaves the broker LWT to fire `$state=lost`; retained topics are cleared only when `stop(clear_retained=True)` is passed. The vendored `wire/profiles/*.json` are the schema (capabilities, properties, datatypes, units, `$format`, settability); `bag_builder` maps each profile-declared property to a snapshot accessor and fails loud at construction if any declared property has no source.
 
 ## Native devices
 
@@ -25,13 +25,13 @@ Two device classes are not pure publishers: their behaviour runs inside the emit
 
 ### BESS (`dist_enc_sim.native_devices.bess`)
 
-Owns the dispatch decision, SOC/SOE accumulation, mode behaviour (self-consumption / backup-only), charge/discharge windows, and the backup-reserve floor. Instantiated when `Emitter` is constructed with a `bess_config`.
+Owns the dispatch decision, SOC/SOE accumulation, mode behaviour (self-consumption / backup-only), and the backup-reserve floor. (The `charge_hours` / `discharge_hours` config fields exist but are inert: the dispatch logic never reads them, and hour-of-day / TOU windows are explicitly not modelled.) Instantiated when `Emitter` is constructed with `bess_configs`, a tuple of `BESSConfig` (default empty). One `BESSDevice` is created per config, keyed by `BESSConfig.instance_id`; duplicate instance IDs raise `EmitterStateError`.
 
-Per-tick inputs (from `TickInputs`): `current_time` (charge/discharge window evaluation), `grid_online` (when false the BESS discharges to meet `load_demand - pv_available`), and the derived `load_demand_w` (sum of positive circuit powers) and `pv_available_w` (magnitude of the negative circuit powers).
+Per-tick inputs (from `TickInputs`): `current_time` (received but not consulted by the current dispatch logic; hour-of-day windows are not modelled), `grid_online` (when false the BESS discharges to meet `load_demand - pv_available`), and the derived `load_demand_w` (sum of positive circuit powers) and `pv_available_w` (magnitude of the negative circuit powers).
 
 Per-tick outputs (into `snapshot.battery`): `soe_percentage`, `soe_kwh`, and `active_power_w` (positive = discharging, negative = charging).
 
-Mid-run config changes: `emitter.update_bess_config(new_config)` swaps the `BESSConfig` reference while SOC/SOE state persists (the path for dashboard edits to charge windows, mode, and max rates). Persistence across restart: call `emitter.seed_bess_soe(instance_id, soe_kwh)` between `__init__` and `start()`, or declare `initial-soe-kwh` in the manifest. Subclassing `BESSDevice` is supported for vendor-variant behaviour without a plugin framework.
+Mid-run config changes: `emitter.update_bess_config(new_config)` swaps the `BESSConfig` reference while SOC/SOE state persists (the path for dashboard edits to mode and max charge/discharge rates; the charge/discharge hour-window fields are carried but not yet applied by the dispatch logic). Persistence across restart: call `emitter.seed_bess_soe(instance_id, soe_kwh)` between `__init__` and `start()`, or declare `initial-soe-kwh` in the manifest. Subclassing `BESSDevice` is supported for vendor-variant behaviour without a plugin framework.
 
 ### Load shedding (`dist_enc_sim.native_devices.load_shedding`)
 
@@ -77,7 +77,7 @@ Relay changes reach the wire on the next `publish_tick`, bounded by the producer
 
 | Concern | Owner |
 |---|---|
-| Homie wire (parent-child devices, capability nodes, retained, LWT) | emitter |
+| Homie wire mechanics (`$description`/`$state`, parent-child arrays, retained topics + value encoding, LWT) | ebus-sdk (emitter builds the `Device` tree + capability nodes and drives the start/stop lifecycle) |
 | Device profiles + property graph + diff publishing | emitter |
 | Settable-property routing (`/set` to internal state) | emitter |
 | Relay state machine (always-on > /set > shed > default-CLOSED) | emitter |

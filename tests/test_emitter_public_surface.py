@@ -1,5 +1,5 @@
 """Public surface smoke tests — verify exports are present and Emitter
-constructs + publishes against an in-memory FakeMqttClient via publish_tick.
+constructs + publishes broker-free (autouse ``mock_paho``) via publish_tick.
 
 The full publish_tick coverage (BESS, load shedding, /set internal handlers,
 seed APIs, etc.) lives in test_publish_tick.py."""
@@ -41,26 +41,7 @@ from dist_enc_sim import (
     legs_for_tabs,
 )
 
-
-class FakeMqttClient:
-    def __init__(self) -> None:
-        self.published: list[tuple[str, bytes, int, bool]] = []
-        self.subscribed: list[str] = []
-
-    def is_connected(self) -> bool:
-        return True
-
-    async def publish(
-        self,
-        topic: str,
-        payload: bytes,
-        qos: int = 0,
-        retain: bool = False,
-    ) -> None:
-        self.published.append((topic, payload, qos, retain))
-
-    async def subscribe(self, topic: str) -> None:
-        self.subscribed.append(topic)
+from .conftest import PahoRecorder
 
 
 def _manifest() -> DeviceManifest:
@@ -137,34 +118,31 @@ def test_imports_succeed() -> None:
 
 
 def test_emitter_init_fills_in_default_setter_handlers() -> None:
-    """v0.3.0 contract: emitter registers internal default handlers for the
-    four settable properties when the producer hasn't supplied one. An empty
-    SetterRegistry no longer triggers MissingSetterError."""
+    """Emitter registers internal default handlers for the settable properties
+    when the producer hasn't supplied one. An empty SetterRegistry no longer
+    triggers MissingSetterError."""
     setters = SetterRegistry()
-    Emitter(_manifest(), setters, FakeMqttClient())
+    Emitter(_manifest(), setters)
     assert setters.get("circuit", "switch/relay") is not None
     assert setters.get("circuit", "load-shed/priority") is not None
     assert setters.get("panel", "shed/asserted-islanding-state") is not None
 
 
-@pytest.mark.asyncio
-async def test_emitter_lifecycle_start_publish_stop() -> None:
-    mqtt = FakeMqttClient()
-    emitter = Emitter(_manifest(), SetterRegistry(), mqtt)
-    await emitter.start()
-    snapshot = await emitter.publish_tick(
+def test_emitter_lifecycle_start_publish_stop(rec: PahoRecorder) -> None:
+    emitter = Emitter(_manifest(), SetterRegistry())
+    emitter.start()
+    snapshot = emitter.publish_tick(
         TickInputs(current_time=0.0, grid_online=True, circuits={"c1": 200.0}),
     )
     assert snapshot.info.serial_number == "p1"
-    assert any(t.endswith("$state") for (t, _, _, _) in mqtt.published)
+    assert any(t.endswith("$state") for (t, _, _, _) in rec.published)
     assert emitter.last_snapshot is snapshot
-    await emitter.stop(graceful=True)
+    emitter.stop(graceful=True)
 
 
-@pytest.mark.asyncio
-async def test_publish_tick_before_start_raises() -> None:
-    emitter = Emitter(_manifest(), SetterRegistry(), FakeMqttClient())
+def test_publish_tick_before_start_raises() -> None:
+    emitter = Emitter(_manifest(), SetterRegistry())
     with pytest.raises(EmitterStateError):
-        await emitter.publish_tick(
+        emitter.publish_tick(
             TickInputs(current_time=0.0, grid_online=True, circuits={"c1": 0.0}),
         )

@@ -12,7 +12,9 @@ diff cache and read-back via ``last_snapshot``; producers do not construct it.""
 
 from __future__ import annotations
 
-from typing import Protocol, runtime_checkable
+import logging
+import time
+from typing import Any
 
 from dist_enc_sim.energy_integrator import EnergyIntegrator
 from dist_enc_sim.exceptions import EmitterStateError
@@ -47,25 +49,17 @@ from dist_enc_sim.snapshot import (
 from dist_enc_sim.tick_inputs import TickInputs
 from dist_enc_sim.wire.bag_builder import BagBuilder
 from dist_enc_sim.wire.graph_builder import build_graph
-from dist_enc_sim.wire.lifecycle import LifecycleController
-from dist_enc_sim.wire.lifecycle import lwt_settings as _lwt
 from dist_enc_sim.wire.mapping_loader import load_mapping_table
 from dist_enc_sim.wire.profile_loader import load_profiles
 from dist_enc_sim.wire.publisher import Publisher
-from dist_enc_sim.wire.set_router import SetterRegistry, compute_subscriptions
+from dist_enc_sim.wire.set_router import (
+    SetterRegistry,
+    check_setter_coverage,
+    make_set_callback,
+)
 
-
-@runtime_checkable
-class _MqttClientLike(Protocol):
-    def is_connected(self) -> bool: ...
-    async def publish(
-        self,
-        topic: str,
-        payload: bytes,
-        qos: int = 0,
-        retain: bool = False,
-    ) -> None: ...
-    async def subscribe(self, topic: str) -> None: ...
+_LOG = logging.getLogger(__name__)
+_DEFAULT_MQTT_CFG: dict[str, Any] = {"host": "127.0.0.1", "port": 1883}
 
 
 class Emitter:
@@ -75,24 +69,25 @@ class Emitter:
         self,
         manifest: DeviceManifest,
         setter_registry: SetterRegistry,
-        mqtt_client: _MqttClientLike,
         *,
+        mqtt_cfg: dict[str, Any] | None = None,
         bess_configs: tuple[BESSConfig, ...] = (),
         load_shedding_config: LoadSheddingConfig | None = None,
-        ebus_domain: str = "ebus",
-        bus_version: str = "5",
     ) -> None:
         self._manifest = manifest
+        self._mqtt_cfg = dict(mqtt_cfg) if mqtt_cfg is not None else dict(_DEFAULT_MQTT_CFG)
 
         self._profiles = load_profiles()
         self._mapping = load_mapping_table()
         self._mapping.validate_against(self._profiles)
 
-        self._graph = build_graph(manifest, self._mapping, self._profiles)
+        # The root device owns the shared MQTT connection built from mqtt_cfg;
+        # children share it. Construction opens no socket (deferred to start()).
+        self._graph = build_graph(manifest, self._mapping, self._profiles, mqtt_cfg=self._mqtt_cfg)
+        self._root = self._graph.devices[self._graph.root_id]
 
-        # ---- v0.3.0 internal state (must exist before internal /set handlers
-        # bind, which must happen before compute_subscriptions validates handler
-        # coverage). ----
+        # ---- native-device + physics state (must exist before internal /set
+        # handlers bind, which must happen before setter-coverage validation). ----
         # BESS is pluralized: a panel can host multiple battery devices (e.g. a
         # Powerwall plus an Enphase IQ, or two Powerwalls). Keyed by
         # ``BESSConfig.instance_id``; duplicate IDs are a producer-side bug.
@@ -134,102 +129,84 @@ class Emitter:
             if bphys.initial_soe_kwh is not None and bess_id in self._bess:
                 self._bess[bess_id].set_soe(bphys.initial_soe_kwh)
 
-        # Internal default /set handlers — registered BEFORE compute_subscriptions
-        # so its missing-handler check passes. Producer-supplied handlers always
-        # win (the helper checks .get() first).
+        # Internal default /set handlers — registered BEFORE the setter-coverage
+        # check so it passes. Producer-supplied handlers always win (the helper
+        # checks .get() first).
         self._register_internal_setters(setter_registry)
 
-        # ---- Wire layer subscriptions ----
+        # ---- /set wiring: fail loud on any settable without a handler, then
+        # bind each settable Property's SDK set-callback to its registry handler.
+        # (ebus-sdk owns the /set subscription + payload decode.) ----
         instances = [(i.entity_class, i.instance_id) for i in manifest.instances]
         settables_by_class = {
             ec: profile.settable_properties() for ec, profile in self._profiles.items()
         }
-
-        root_id = next(
-            i.instance_id
-            for i in manifest.instances
-            if any(
-                m.entity_class == i.entity_class and m.placement.kind == "root-device"
-                for m in self._mapping.values()
-            )
-        )
-
-        def _device_id_for(ec: str, iid: str) -> str:
-            placement = self._mapping[ec].placement
-            if placement.kind == "node-on-parent":
-                return root_id
-            return iid
-
-        def _node_id_for(ec: str, iid: str, cap: str) -> str:
-            placement = self._mapping[ec].placement
-            if placement.kind == "node-on-parent":
-                template = placement.node_id_template or "{instance_id}"
-                return template.format(
-                    instance_id=iid,
-                    instance_id_short=iid[:8],
-                    display_name=self._manifest.get(ec, iid).display_name,
-                )
-            return cap
-
-        def _datatype_for(ec: str, cap: str, key: str) -> str:
-            return self._profiles[ec].capabilities[cap].properties[key].datatype
-
-        self._subscriptions = compute_subscriptions(
+        check_setter_coverage(
             instances=instances,
             settables_by_class=settables_by_class,
             registry=setter_registry,
-            domain=ebus_domain,
-            bus_version=bus_version,
-            device_id_for=_device_id_for,
-            node_id_for=_node_id_for,
-            datatype_for=_datatype_for,
         )
+        self._wire_set_callbacks(setter_registry, instances, settables_by_class)
 
-        self._lifecycle = LifecycleController(
-            manifest,
-            self._mapping,
-            self._profiles,
-            self._graph,
-            mqtt_client,
-            domain=ebus_domain,
-            bus_version=bus_version,
-            subscriptions=self._subscriptions,
-        )
-
-        self._publisher = Publisher(
-            self._graph,
-            mqtt_client,
-            domain=ebus_domain,
-            bus_version=bus_version,
-        )
+        self._publisher = Publisher(self._graph)
         self._bag_builder = BagBuilder(self._graph, self._mapping, self._profiles)
         self._last_snapshot: EbusPanelSnapshot | None = None
         self._started = False
 
-    @staticmethod
-    def lwt_settings(manifest: DeviceManifest) -> tuple[str, bytes, int, bool]:
-        # Derive the root entity class from the mapping table rather than
-        # hard-coding "panel"; future mapping tables may use a different root
-        # (e.g. an MID device parenting a panel node).
-        mapping = load_mapping_table()
-        return _lwt(
-            manifest,
-            domain="ebus",
-            bus_version="5",
-            root_entity_class=mapping.root_entity_class(),
-        )
+    def _wire_set_callbacks(
+        self,
+        registry: SetterRegistry,
+        instances: list[tuple[str, str]],
+        settables_by_class: dict[str, list[tuple[str, str]]],
+    ) -> None:
+        """Bind every settable property's ebus-sdk set-callback to its registry
+        handler. The callback coerces the ``/set`` payload per datatype and fans
+        in to the handler; ebus-sdk owns the subscription + decode."""
+        for ec, iid in instances:
+            for cap, key in settables_by_class.get(ec, []):
+                prop_path = f"{cap}/{key}"
+                handler = registry.get(ec, prop_path)
+                sdk_prop = self._graph.properties.get((ec, iid, prop_path))
+                if handler is None or sdk_prop is None:
+                    continue
+                datatype = self._profiles[ec].capabilities[cap].properties[key].datatype
+                sdk_prop.set_set_callback(
+                    make_set_callback(
+                        handler,
+                        entity_class=ec,
+                        instance_id=iid,
+                        property_path=prop_path,
+                        datatype=datatype,
+                    )
+                )
 
-    async def start(self) -> None:
-        await self._lifecycle.start()
+    def start(self, *, connect_timeout_s: float = 5.0) -> None:
+        """Open the MQTT connection and publish the retained device tree.
+
+        ebus-sdk publishes each device's ``$description`` + ``$state`` and
+        subscribes the ``/set`` topics itself once the link comes up (on_connect
+        -> refresh_tree). We start the root's shared client and wait, bounded,
+        for the link so the first ``publish_tick`` lands live; publishing before
+        connect is still safe (values are retained and republished on connect)."""
+        self._root.start_mqtt_client()
+        deadline = time.monotonic() + connect_timeout_s
+        while not self._root.is_connected() and time.monotonic() < deadline:
+            time.sleep(0.02)
+        if not self._root.is_connected():
+            _LOG.warning(
+                "Emitter.start(): MQTT link not up after %.1fs; publishing anyway "
+                "(values are retained and republished on connect)",
+                connect_timeout_s,
+            )
         self._started = True
 
-    async def publish_tick(self, tick_inputs: TickInputs) -> EbusPanelSnapshot:
-        """The v0.3.0 producer-facing publish path. Returns the constructed
-        snapshot for the producer to read back."""
+    def publish_tick(self, tick_inputs: TickInputs) -> EbusPanelSnapshot:
+        """The producer-facing publish path. Builds the snapshot from the tick,
+        publishes the Homie diff, and returns the snapshot for read-back."""
         if not self._started:
             raise EmitterStateError("Emitter.publish_tick() called before start()")
         snapshot = self._build_snapshot_from_tick(tick_inputs)
-        await self._publish_diff(snapshot)
+        self._publish_diff(snapshot)
         return snapshot
 
     def seed_energy(
@@ -262,8 +239,24 @@ class Emitter:
             )
         self._bess[instance_id].set_soe(soe_kwh)
 
-    async def stop(self, *, graceful: bool = True, clear_retained: bool = False) -> None:
-        await self._lifecycle.stop(graceful=graceful, clear_retained=clear_retained)
+    def stop(self, *, graceful: bool = True, clear_retained: bool = False) -> None:
+        """Tear down the MQTT connection.
+
+        Graceful (default): publish the root's ``$state=disconnected`` then stop
+        the shared client (ebus-sdk's bounded teardown; per Homie's
+        effective-state rule the root going disconnected covers every child).
+        Non-graceful: stop the client without the disconnected publish, leaving
+        the LWT to fire ``$state=lost``. ``clear_retained`` additionally clears
+        every device's retained values + ``$description`` before disconnecting,
+        for a clean-slate re-run."""
+        if not graceful:
+            if self._root.mqttc is not None:
+                self._root.mqttc.stop()
+            return
+        if clear_retained:
+            for device in self._graph.devices.values():
+                device.delete_all_from_mqtt()
+        self._root.stop()
 
     def update_bess_config(self, config: BESSConfig) -> None:
         """Replace (or add) a BESS device's configuration keyed by
@@ -315,7 +308,7 @@ class Emitter:
         Producers needing custom routing register their own handler before
         constructing the ``Emitter`` and the registry's existing entry wins."""
 
-        async def on_circuit_relay(
+        def on_circuit_relay(
             entity_class: str,
             instance_id: str,
             prop_path: str,
@@ -332,7 +325,7 @@ class Emitter:
             if self._relays.known(instance_id):
                 self._relays.set_user_override(instance_id, new_state)
 
-        async def on_shed_priority(
+        def on_shed_priority(
             entity_class: str,
             instance_id: str,
             prop_path: str,
@@ -341,7 +334,7 @@ class Emitter:
             del entity_class, prop_path
             self._priority_overrides[instance_id] = str(value).upper()
 
-        async def on_asserted_islanding(
+        def on_asserted_islanding(
             entity_class: str,
             instance_id: str,
             prop_path: str,
@@ -350,7 +343,7 @@ class Emitter:
             del entity_class, instance_id, prop_path
             self._asserted_islanding_override = str(value).upper()
 
-        async def on_evse_user_max(
+        def on_evse_user_max(
             entity_class: str,
             instance_id: str,
             prop_path: str,
@@ -368,9 +361,9 @@ class Emitter:
         if registry.get("evse", "config/user-max-charge-current") is None:
             registry.register("evse", "config/user-max-charge-current", on_evse_user_max)
 
-    async def _publish_diff(self, snapshot: EbusPanelSnapshot) -> None:
+    def _publish_diff(self, snapshot: EbusPanelSnapshot) -> None:
         bag = self._bag_builder.build(snapshot)
-        await self._publisher.publish(bag)
+        self._publisher.publish(bag)
         self._last_snapshot = snapshot
 
     def _build_snapshot_from_tick(self, tick: TickInputs) -> EbusPanelSnapshot:

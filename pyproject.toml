@@ -8,20 +8,16 @@ version = "0.1.0"
 description = "Producer-side Homie publisher with embedded behaviour runtime for the eBus convention"
 requires-python = ">=3.11"
 dependencies = [
-    "ebus-sdk>=0.1.5",
+    "ebus-sdk>=0.12,<0.13",
     "pyyaml>=6.0",
-    "paho-mqtt>=2.0.0",
 ]
 
 [dependency-groups]
 dev = [
     "pytest>=8.0",
-    "pytest-asyncio>=0.23",
     "ruff>=0.15.0",
     "mypy>=1.10",
     "types-pyyaml>=6.0",
-    "amqtt>=0.11",     # in-process MQTT broker for integration tests
-    "aiomqtt>=2.0",    # async MQTT client for tests + producer adapters
 ]
 
 [project.urls]
@@ -46,20 +42,15 @@ select = ["E", "F", "W", "I", "UP", "B", "SIM", "TCH", "RUF"]
 ignore = ["TC001", "TC002", "TC003"]
 
 [tool.pytest.ini_options]
-asyncio_mode = "auto"
 testpaths = ["tests"]
 
 [tool.mypy]
 python_version = "3.11"
 strict = true
 
-# `paho-mqtt` and `ebus-sdk` ship without `py.typed` markers; mypy cannot resolve their
-# stubs. ``ignore_missing_imports`` is the only legitimate ignore here — it surfaces
-# the upstream gap rather than masking emitter-side type errors.
-[[tool.mypy.overrides]]
-module = "paho.*"
-ignore_missing_imports = true
-
+# `ebus-sdk` ships without a `py.typed` marker; mypy cannot resolve its stubs.
+# ``ignore_missing_imports`` is the only legitimate ignore here: it surfaces the
+# upstream gap rather than masking emitter-side type errors.
 [[tool.mypy.overrides]]
 module = "ebus_sdk"
 ignore_missing_imports = true

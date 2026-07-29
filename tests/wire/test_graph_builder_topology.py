@@ -125,15 +125,15 @@ def _three_level_chain() -> tuple[DeviceManifest, MappingTable, ProfileTable]:
 
 def test_three_level_chain_parents_mid_under_bess() -> None:
     manifest, mapping, profiles = _three_level_chain()
-    g = build_graph(manifest, mapping, profiles)
+    g = build_graph(manifest, mapping, profiles, mqtt_cfg={})
 
     # All three devices were created.
     assert set(g.devices.keys()) == {"p1", "b1", "m1"}
 
-    # children_of records the parent->children topology.
-    assert g.children_of["p1"] == ("b1",)
-    assert g.children_of["b1"] == ("m1",)
-    assert "m1" not in g.children_of  # leaf
+    # ebus-sdk maintains the parent->children topology (children_ids()).
+    assert g.devices["p1"].children_ids() == ["b1"]
+    assert g.devices["b1"].children_ids() == ["m1"]
+    assert g.devices["m1"].children_ids() == []  # leaf
 
     # MID was parented under BESS, not under the root panel.
     mid_device = g.devices["m1"]
@@ -158,8 +158,8 @@ def test_descriptor_order_does_not_affect_result() -> None:
     reordered["bess"] = mapping["bess"]
     reordered["panel"] = mapping["panel"]
 
-    g = build_graph(manifest, reordered, profiles)
-    assert g.children_of["b1"] == ("m1",)
+    g = build_graph(manifest, reordered, profiles, mqtt_cfg={})
+    assert g.devices["b1"].children_ids() == ["m1"]
     assert g.devices["m1"].parent_id() == "b1"
 
 
@@ -196,4 +196,4 @@ def test_cycle_in_parent_entity_class_raises() -> None:
     )
 
     with pytest.raises(ProfileValidationError, match="cycle"):
-        build_graph(manifest, mapping, profiles)
+        build_graph(manifest, mapping, profiles, mqtt_cfg={})

@@ -11,9 +11,9 @@ For the internals (the per-tick pipeline, the native BESS/load-shed devices, `/s
 
 ## Requirements
 
-- Python >= 3.14
+- Python >= 3.11
 - [uv](https://docs.astral.sh/uv/)
-- An MQTT broker (the bundled example starts its own in-process broker, so none is needed to try it)
+- An MQTT broker reachable at `localhost:1883` (plaintext). The companion [broker-quickstart](https://github.com/electrification-bus/broker-quickstart) bundle brings one up in one command; any `mosquitto` works too.
 
 ## Install
 
@@ -29,13 +29,24 @@ It depends on `ebus-sdk`.
 
 ## Run
 
-The repo ships a runnable example that starts an in-process MQTT broker, builds an emitter from a YAML definition, drives a couple of ticks, and prints the retained Homie topic map:
+The repo ships a runnable example: it builds an emitter from a YAML definition, publishes a couple of ticks to an MQTT broker, then reads the retained tree back through an ebus-sdk `Controller` and prints it. It expects a plaintext broker on `localhost:1883`.
+
+The quickest broker is the companion [broker-quickstart](https://github.com/electrification-bus/broker-quickstart) in its `open` profile (plaintext, anonymous, port 1883):
+
+```bash
+# in a broker-quickstart checkout — a plaintext :1883 broker (anon read + write)
+python -m laptop.run --profile open
+```
+
+Then, in this repo, publish to it and print the retained tree:
 
 ```bash
 uv sync --group dev
-uv run python examples/run_forty_tab_minimal.py             # print the retained topic tree
-uv run python examples/run_forty_tab_minimal.py > tree.txt  # capture a transcript
+uv run python examples/run_forty_tab_minimal.py                        # print the retained tree
+uv run python examples/run_forty_tab_minimal.py --broker 127.0.0.1:1883 --ticks 2 > tree.txt
 ```
+
+Any broker that accepts anonymous connections on `localhost:1883` works; `--broker host:port` points the example elsewhere.
 
 The definition is `examples/forty_tab_minimal.yaml`: a fully-commissioned enclosure with circuits, upstream/downstream lugs, a BESS (plus its MID), PV, and SPAN Drive EVSEs. Each node is its own Homie device: the enclosure at `ebus/5/<enclosure-id>/…` and each circuit, lugs pair, and DER at its own topic root, for example `ebus/5/<circuit-id>/switch/relay`, `ebus/5/<lugs-id>/meter/current-a`, `ebus/5/<bess-id>-mid/grid/islanding-state`.
 
@@ -69,7 +80,6 @@ A producer can build `DeviceInstance`s directly instead of using the YAML loader
 ## Usage (as a producer library)
 
 ```python
-import asyncio
 import time
 
 from dist_enc_sim import (
@@ -78,7 +88,7 @@ from dist_enc_sim import (
 )
 
 
-async def main() -> None:
+def main() -> None:
     manifest = DeviceManifest(instances=(
         DeviceInstance("panel", "abc-123", "Span Panel", metadata={
             "vendor-name": "Span", "serial-number": "abc-123",
@@ -100,28 +110,33 @@ async def main() -> None:
     bess_cfg = BESSConfig(instance_id="abc-123-bess", nameplate_capacity_kwh=13.5,
                           max_charge_w=3500.0, max_discharge_w=3500.0)
 
-    mqtt = build_your_mqtt_client(will=Emitter.lwt_settings(manifest))
-    await mqtt.connect()
+    # The emitter owns the MQTT connection: ebus-sdk builds the client from
+    # mqtt_cfg and sets the enclosure's LWT. Empty SetterRegistry -> the emitter
+    # installs internal default /set handlers; register your own before
+    # construction to override them.
+    emitter = Emitter(
+        manifest, SetterRegistry(),
+        mqtt_cfg={"host": "127.0.0.1", "port": 1883},
+        bess_configs=(bess_cfg,),
+        load_shedding_config=LoadSheddingConfig(soc_threshold_pct=20.0),
+    )
+    emitter.start()
+    try:
+        while True:
+            emitter.publish_tick(TickInputs(
+                current_time=time.time(),
+                grid_online=True,
+                circuits=collect_powers_from_your_model(),  # instance_id -> signed watts
+            ))
+            time.sleep(1.0)
+    finally:
+        emitter.stop()
 
-    # Empty SetterRegistry: the emitter installs internal default handlers for the
-    # settable properties. Register your own before construction to override them.
-    emitter = Emitter(manifest, SetterRegistry(), mqtt, bess_configs=(bess_cfg,),
-                      load_shedding_config=LoadSheddingConfig(soc_threshold_pct=20.0))
-    await emitter.start()
 
-    while True:
-        await emitter.publish_tick(TickInputs(
-            current_time=time.time(),
-            grid_online=True,
-            circuits=collect_powers_from_your_model(),  # instance_id -> signed watts
-        ))
-        await asyncio.sleep(1.0)
-
-
-asyncio.run(main())
+main()
 ```
 
-Read the most recently published state back through `emitter.last_snapshot`.
+Read the most recently published state back through `emitter.last_snapshot`. `mqtt_cfg` is handed straight to ebus-sdk: beyond `host`/`port` it takes the ebus-mqtt-client TLS and authentication keys for secured brokers (e.g. broker-quickstart's mTLS `discovery`/`strict` profiles).
 
 ## Layout
 

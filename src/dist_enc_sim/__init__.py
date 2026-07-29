@@ -3,7 +3,8 @@
 Architecture (v0.3.0):
 
 - **Wire layer** (``wire/``): vendored Homie 5 device profiles + mapping descriptors,
-  graph builder, lifecycle controller, /set router, property bag diff cache, SDK seam.
+  graph builder, diff-only publisher, /set setter fan-in, and the property/bag diff
+  cache over a thin ebus-sdk seam (ebus-sdk owns $description/$state/LWT/encoding).
 - **Native devices** (``native_devices/``): emitter-resident, configured-and-self-driving
   device runtimes (BESS dispatch, load shedding).
 - **Manifest physics** (``manifest_physics.py``): typed accessor over

@@ -1,4 +1,14 @@
-"""Walk the manifest + mapping descriptors + profiles, build the ebus-sdk Device graph."""
+"""Walk the manifest + mapping descriptors + profiles, build the ebus-sdk Device graph.
+
+The graph is pure structure: a root ``Device`` (which owns the shared MQTT
+connection, built from ``mqtt_cfg``) plus one child ``Device`` per
+``child-of-parent`` entity, wired via ebus-sdk's ``parent=`` so the SDK
+maintains ``children``/``root``/``parent`` and emits each device's
+``$description`` itself. Construction opens no socket: the root's client
+connects only when ``start_mqtt_client()`` is called. Behaviour wiring (settable
+``/set`` callbacks) and per-tick value publishing live elsewhere; this module
+owns topology + schema only.
+"""
 
 from __future__ import annotations
 
@@ -19,23 +29,30 @@ PropertyKey = tuple[str, str, str]
 
 @dataclass(slots=True)
 class BuiltGraph:
+    """Structural result of walking the manifest.
+
+    ``devices`` maps instance id -> the SDK ``Device`` (root and children).
+    ``properties`` maps ``(entity_class, instance_id, "cap/key")`` -> the SDK
+    ``Property``, the seam the publisher and setter-wiring use. ``root_id`` is
+    the single root device's instance id. The SDK owns ``$description`` /
+    ``children`` / ``$state``, so this graph carries no hand-built payloads.
+    """
+
     devices: dict[str, ebus_sdk.Device] = field(default_factory=dict)
     properties: dict[PropertyKey, ebus_sdk.Property] = field(default_factory=dict)
-    description_payloads: dict[str, dict[str, Any]] = field(default_factory=dict)
-    children_of: dict[str, tuple[str, ...]] = field(default_factory=dict)
-    node_types: dict[str, str] = field(default_factory=dict)
-    # Per-device capability nodes (device_id -> {node_id: node_type}) and, for
-    # each device, its (entity_class, parent_id) — parent_id is None for the
-    # root. Together these build each device's own ``$description``.
-    device_nodes: dict[str, dict[str, str]] = field(default_factory=dict)
-    device_descriptors: dict[str, tuple[str, str | None]] = field(default_factory=dict)
+    root_id: str = ""
 
 
 def build_graph(
     manifest: DeviceManifest,
     mapping: MappingTable,
     profiles: ProfileTable,
+    *,
+    mqtt_cfg: dict[str, Any],
 ) -> BuiltGraph:
+    """Build the SDK device tree. ``mqtt_cfg`` is the broker config handed to the
+    root device (a plain dict: ``host``/``port``/TLS/auth keys per ebus-mqtt-client);
+    children share the root's connection. No socket opens here."""
     graph = BuiltGraph()
 
     root_descriptors = [m for m in mapping.values() if m.placement.kind == "root-device"]
@@ -56,9 +73,10 @@ def build_graph(
         root_instance.instance_id,
         name=root_instance.display_name,
         type=profiles[root_class].type,
+        mqtt_cfg=mqtt_cfg,
     )
     graph.devices[root_instance.instance_id] = root_device
-    graph.device_descriptors[root_instance.instance_id] = (root_class, None)
+    graph.root_id = root_instance.instance_id
 
     _attach_profile(
         root_device,
@@ -70,18 +88,11 @@ def build_graph(
         node_id_template=None,
     )
 
-    # Children indexed by parent device id (instance_id) — populated as
-    # ``child-of-parent`` descriptors are processed below.
-    children_acc: dict[str, list[str]] = {}
-
-    # Topologically order non-root descriptors so that any descriptor whose
+    # Topologically order non-root descriptors so a descriptor whose
     # ``child-of-parent`` placement names a parent_entity_class is processed
-    # AFTER that parent's descriptor. ``node-on-parent`` descriptors also
-    # participate in the sort but their parent edge is already implicitly the
-    # root device — they only become predecessors when something is parented
-    # under them, which is not currently expressible (their target is always
-    # the root). The DAG edges therefore come solely from
-    # ``child-of-parent.parent_entity_class`` references.
+    # AFTER that parent's descriptor. Edges come solely from
+    # ``child-of-parent.parent_entity_class`` references (``node-on-parent``
+    # descriptors implicitly target the root and contribute no edge).
     ordered = _topo_sort_descriptors(mapping, root_class)
 
     for descriptor in ordered:
@@ -106,8 +117,8 @@ def build_graph(
                     )
 
                 # Resolve the parent SDK device. If parent_ec is the root, it's the
-                # single root device; otherwise we must find the specific parent
-                # instance built earlier by topo order.
+                # single root device; otherwise the specific parent instance built
+                # earlier by topo order.
                 parent_instance: DeviceInstance
                 if parent_ec == root_class:
                     parent_instance = root_instance
@@ -129,17 +140,16 @@ def build_graph(
                         f"(topology bug — should have been ordered before this descriptor)"
                     )
 
+                # ebus-sdk parents at construction via ``parent=<Device>``; it
+                # appends the child to the parent's children and derives
+                # root/parent itself. No parent_id/root_id/add_child anymore.
                 child = ebus_sdk.Device(
                     inst.instance_id,
                     name=inst.display_name,
                     type=profiles[ec].type,
-                    parent_id=parent_instance.instance_id,
-                    root_id=root_instance.instance_id,
+                    parent=parent_device,
                 )
-                parent_device.add_child(inst.instance_id)
                 graph.devices[inst.instance_id] = child
-                graph.device_descriptors[inst.instance_id] = (ec, parent_instance.instance_id)
-                children_acc.setdefault(parent_instance.instance_id, []).append(inst.instance_id)
                 _attach_profile(
                     child,
                     profiles[ec],
@@ -149,32 +159,6 @@ def build_graph(
                     parent_for_path=None,
                     node_id_template=descriptor.placement.node_id_template,
                 )
-
-    graph.children_of = {pid: tuple(kids) for pid, kids in children_acc.items()}
-
-    for device_id, device in graph.devices.items():
-        name = device.name() if callable(device.name) else device.name
-        ec, parent_id = graph.device_descriptors[device_id]
-        payload: dict[str, Any] = {
-            "homie": "5.0",
-            "version": profiles[ec].version,
-            "type": profiles[ec].type,
-            "name": name,
-            "id": device_id,
-            "nodes": {
-                node_id: {"type": node_type}
-                for node_id, node_type in sorted(graph.device_nodes.get(device_id, {}).items())
-            },
-        }
-        if parent_id is not None:
-            payload["root"] = root_instance.instance_id
-            payload["parent"] = parent_id
-        # Homie 5 parent devices advertise their direct children so a controller
-        # can discover the tree top-down (without this, only the root is found).
-        children = graph.children_of.get(device_id)
-        if children:
-            payload["children"] = list(children)
-        graph.description_payloads[device_id] = payload
 
     return graph
 
@@ -251,42 +235,41 @@ def _attach_profile(
 ) -> None:
     """Attach the profile's capabilities + properties to the given device.
 
-    For root entities (parent_for_path is None) capability nodes use plain capability
-    names. For node-on-parent entities, capability nodes are namespaced with the instance
-    ID so multiple circuits/lugs/etc. coexist on the parent without collision.
+    For its own device (parent_for_path is None) capability nodes use plain
+    capability names. For node-on-parent entities, capability nodes are
+    namespaced with the instance ID so multiple instances coexist on the parent
+    without collision. All node/property additions run inside one
+    ``state_transition()`` so the SDK coalesces the description republish into a
+    single init->ready cycle instead of flapping per property.
     """
     single_capability = len(profile.capabilities) == 1
-    target_device_id = (
-        instance.instance_id if parent_for_path is None else parent_for_path.instance_id
-    )
-    for cap_name, cap in profile.capabilities.items():
-        if parent_for_path is None:
-            node_id = cap_name
-        else:
-            node_prefix = _render_node_id(node_id_template or "{instance_id}", instance)
-            node_id = node_prefix if single_capability else f"{node_prefix}-{cap_name}"
-        graph.node_types[node_id] = cap.type
-        graph.device_nodes.setdefault(target_device_id, {})[node_id] = cap.type
-        node = device.add_node_from_dict(
-            {
-                "id": node_id,
-                "name": cap_name,
-                "type": cap.type,
-            }
-        )
-        for prop_key, prop in cap.properties.items():
-            sdk_prop = make_property(
-                node=node,
-                key=prop_key,
-                name=prop.name,
-                datatype=_to_sdk_datatype(prop.datatype),
-                unit=_to_sdk_unit(prop.unit),
-                format_str=prop.format,
-                settable=prop.settable,
+    with device.state_transition():
+        for cap_name, cap in profile.capabilities.items():
+            if parent_for_path is None:
+                node_id = cap_name
+            else:
+                node_prefix = _render_node_id(node_id_template or "{instance_id}", instance)
+                node_id = node_prefix if single_capability else f"{node_prefix}-{cap_name}"
+            node = device.add_node_from_dict(
+                {
+                    "id": node_id,
+                    "name": cap_name,
+                    "type": cap.type,
+                }
             )
-            graph.properties[(entity_class, instance.instance_id, f"{cap_name}/{prop_key}")] = (
-                sdk_prop
-            )
+            for prop_key, prop in cap.properties.items():
+                sdk_prop = make_property(
+                    node=node,
+                    key=prop_key,
+                    name=prop.name,
+                    datatype=_to_sdk_datatype(prop.datatype),
+                    unit=_to_sdk_unit(prop.unit),
+                    format_str=prop.format,
+                    settable=prop.settable,
+                )
+                graph.properties[
+                    (entity_class, instance.instance_id, f"{cap_name}/{prop_key}")
+                ] = sdk_prop
 
 
 def _render_node_id(template: str, instance: DeviceInstance) -> str:

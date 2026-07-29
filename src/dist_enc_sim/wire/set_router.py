@@ -1,26 +1,31 @@
-"""Setter registry, /set subscription computation, and dispatch."""
+"""Setter registry, ``/set`` coverage validation, and SDK callback wiring.
+
+ebus-sdk owns the ``/set`` subscription and payload decode (empty-string ``0x00``
+convention + JSON-schema validation); this module owns the producer-facing
+fan-in:
+
+* ``SetterRegistry`` — sync handlers keyed by ``(entity_class, property_path)``.
+* ``check_setter_coverage`` — fail-loud if any settable property whose class is
+  present in the manifest has no registered handler.
+* ``make_set_callback`` — adapt a registry handler into an ebus-sdk
+  ``Property`` set-callback. The SDK delivers a non-json payload as a decoded
+  ``str`` (and a json payload as a parsed object); we coerce per the profile
+  datatype and invoke the handler with
+  ``(entity_class, instance_id, property_path, value)``.
+"""
 
 from __future__ import annotations
 
 import logging
-from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
+from collections.abc import Callable
 
 from dist_enc_sim.exceptions import MissingSetterError
 
 _LOG = logging.getLogger(__name__)
 
-SetterHandler = Callable[[str, str, str, object], Awaitable[None]]
-
-
-@dataclass(slots=True)
-class SetSubscription:
-    topic_pattern: str
-    entity_class: str
-    instance_id: str
-    property_path: str
-    datatype: str
-    handler: SetterHandler
+# Sync handler: (entity_class, instance_id, property_path, value) -> None. The
+# callback runs on the MQTT client's network thread.
+SetterHandler = Callable[[str, str, str, object], None]
 
 
 class SetterRegistry:
@@ -39,108 +44,79 @@ class SetterRegistry:
         return self._handlers.get((entity_class, property_path))
 
 
-def compute_subscriptions(
+def check_setter_coverage(
     *,
     instances: list[tuple[str, str]],
     settables_by_class: dict[str, list[tuple[str, str]]],
     registry: SetterRegistry,
-    domain: str,
-    bus_version: str,
-    device_id_for: Callable[[str, str], str],
-    node_id_for: Callable[[str, str, str], str] | None = None,
-    datatype_for: Callable[[str, str, str], str] | None = None,
-) -> list[SetSubscription]:
-    if datatype_for is None:
-
-        def datatype_for_default(_ec: str, _cap: str, _key: str) -> str:
-            return "string"
-
-        datatype_for = datatype_for_default
-    if node_id_for is None:
-
-        def node_id_for_default(_ec: str, iid: str, cap: str) -> str:
-            del _ec, iid
-            return cap
-
-        node_id_for = node_id_for_default
-
+) -> None:
+    """Raise ``MissingSetterError`` if any settable property (for an entity class
+    present in the manifest) has no registered handler."""
+    declared_classes = {ec for ec, _iid in instances}
     missing: list[tuple[str, str]] = []
-    declared_classes: set[str] = set()
-    for ec, _iid in instances:
-        declared_classes.add(ec)
     for ec in declared_classes:
         for cap, key in settables_by_class.get(ec, []):
             prop_path = f"{cap}/{key}"
             if registry.get(ec, prop_path) is None:
                 missing.append((ec, prop_path))
-
     if missing:
         raise MissingSetterError(missing=sorted(set(missing)))
 
-    subs: list[SetSubscription] = []
-    for ec, iid in instances:
-        device_id = device_id_for(ec, iid)
-        for cap, key in settables_by_class.get(ec, []):
-            node_id = node_id_for(ec, iid, cap)
-            prop_path = f"{cap}/{key}"
-            handler = registry.get(ec, prop_path)
-            assert handler is not None
-            subs.append(
-                SetSubscription(
-                    topic_pattern=f"{domain}/{bus_version}/{device_id}/{node_id}/{key}/set",
-                    entity_class=ec,
-                    instance_id=iid,
-                    property_path=prop_path,
-                    datatype=datatype_for(ec, cap, key),
-                    handler=handler,
-                )
-            )
-    return subs
 
+def make_set_callback(
+    handler: SetterHandler,
+    *,
+    entity_class: str,
+    instance_id: str,
+    property_path: str,
+    datatype: str,
+) -> Callable[[object], None]:
+    """Wrap a registry handler as an ebus-sdk ``Property`` set-callback.
 
-async def dispatch(
-    topic: str,
-    payload: bytes,
-    subscriptions: list[SetSubscription],
-) -> None:
-    """Topic miss → log + drop. Decode failure → log + drop. Handler raises → log at
-    ERROR with full context, then re-raise (fail-fast)."""
-    for sub in subscriptions:
-        if sub.topic_pattern != topic:
-            continue
+    Decode failure (a malformed ``/set`` payload) is logged and dropped — a bad
+    command must not crash the emitter. A handler that raises is logged at ERROR
+    and swallowed: the callback runs on the MQTT network thread, so propagating
+    would only tear that thread down."""
+
+    def _callback(raw: object) -> None:
         try:
-            value = _decode(payload, sub.datatype)
-        except Exception:
+            value = _coerce(raw, datatype)
+        except (TypeError, ValueError):
             _LOG.warning(
-                "set decode failed for topic=%s payload=%r datatype=%s",
-                topic,
-                payload,
-                sub.datatype,
+                "set decode failed: entity_class=%s instance_id=%s property_path=%s "
+                "raw=%r datatype=%s",
+                entity_class,
+                instance_id,
+                property_path,
+                raw,
+                datatype,
             )
             return
         try:
-            await sub.handler(sub.entity_class, sub.instance_id, sub.property_path, value)
+            handler(entity_class, instance_id, property_path, value)
         except Exception:
             _LOG.exception(
                 "setter handler raised: entity_class=%s instance_id=%s property_path=%s value=%r",
-                sub.entity_class,
-                sub.instance_id,
-                sub.property_path,
+                entity_class,
+                instance_id,
+                property_path,
                 value,
             )
-            raise
-        return
-    _LOG.warning("/set topic miss: %s", topic)
+
+    return _callback
 
 
-def _decode(payload: bytes, datatype: str) -> object:
-    text = payload.decode("utf-8")
+def _coerce(raw: object, datatype: str) -> object:
+    """Coerce an SDK-delivered ``/set`` payload to the profile datatype. JSON
+    payloads arrive already parsed (non-str) and pass through unchanged."""
+    if not isinstance(raw, str):
+        return raw
     match datatype:
         case "float":
-            return float(text)
+            return float(raw)
         case "integer":
-            return int(text)
+            return int(raw)
         case "boolean":
-            return text.lower() in ("true", "1")
+            return raw.strip().lower() in ("true", "1")
         case _:
-            return text
+            return raw

@@ -1,30 +1,31 @@
-"""Run a tiny 40-tab emitter example against an in-process MQTT broker.
+"""Run the 40-tab enclosure simulator against an eBus MQTT broker.
 
-The script is intentionally producer-shaped: it builds a DeviceManifest from a
-small YAML definition, creates an Emitter, drives a couple of ticks, and prints
-the retained MQTT topic map. Redirect stdout to capture a transcript:
+Producer-shaped: builds a DeviceManifest from a small YAML definition, creates a
+(synchronous) Emitter, drives a few ticks, then reads the retained tree back
+through an ebus-sdk Controller and prints it as a sorted ``topic payload`` map.
 
-    uv run python examples/run_forty_tab_minimal.py > /tmp/ebus-topics.txt
+Needs a plaintext MQTT broker on localhost:1883. The easiest is the companion
+broker-quickstart bundle in its ``open`` profile (see ../broker-quickstart), or
+any local broker (e.g. ``mosquitto -p 1883``). Then:
+
+    uv run python examples/run_forty_tab_minimal.py
+    uv run python examples/run_forty_tab_minimal.py --broker 127.0.0.1:1883 --ticks 2 \
+        > /tmp/ebus-topics.txt
 """
 
 from __future__ import annotations
 
 import argparse
-import asyncio
-import contextlib
 import hashlib
 import json
 import logging
-import socket
+import time
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, field
 from pathlib import Path
-from types import TracebackType
-from typing import Literal, Protocol, Self, cast, runtime_checkable
+from typing import Literal, cast
 
-import aiomqtt
 import yaml
-from amqtt.broker import Broker  # type: ignore[import-untyped]
+from ebus_sdk import Controller
 
 from dist_enc_sim import (
     BESSConfig,
@@ -39,85 +40,13 @@ _VALID_RELAY_BEHAVIORS = frozenset({"controllable", "non-controllable", "always-
 _VALID_INVERTER_TYPES = frozenset({"hybrid", "ac-coupled"})
 
 
-@runtime_checkable
-class _MqttClientLike(Protocol):
-    def is_connected(self) -> bool: ...
-
-    async def publish(
-        self,
-        topic: str,
-        payload: bytes,
-        qos: int = 0,
-        retain: bool = False,
-    ) -> None: ...
-
-    async def subscribe(self, topic: str) -> None: ...
-
-
-@dataclass(slots=True)
-class RecordingAiomqttClient:
-    host: str
-    port: int
-    will: aiomqtt.Will | None = None
-    retained: dict[str, bytes] = field(default_factory=dict)
-    published: list[tuple[str, bytes, bool]] = field(default_factory=list)
-    _client: aiomqtt.Client | None = None
-
-    async def __aenter__(self) -> Self:
-        self._client = aiomqtt.Client(
-            hostname=self.host,
-            port=self.port,
-            identifier="dist-enc-sim-example",
-            will=self.will,
-        )
-        await self._client.__aenter__()
-        return self
-
-    async def __aexit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc: BaseException | None,
-        tb: TracebackType | None,
-    ) -> None:
-        if self._client is not None:
-            await self._client.__aexit__(exc_type, exc, tb)
-            self._client = None
-
-    def is_connected(self) -> bool:
-        return self._client is not None
-
-    async def publish(
-        self,
-        topic: str,
-        payload: bytes,
-        qos: int = 0,
-        retain: bool = False,
-    ) -> None:
-        if self._client is None:
-            msg = "MQTT client is not connected"
-            raise RuntimeError(msg)
-        await self._client.publish(topic, payload=payload, qos=qos, retain=retain)
-        self.published.append((topic, payload, retain))
-        if retain:
-            if payload:
-                self.retained[topic] = payload
-            else:
-                self.retained.pop(topic, None)
-
-    async def subscribe(self, topic: str) -> None:
-        if self._client is None:
-            msg = "MQTT client is not connected"
-            raise RuntimeError(msg)
-        await self._client.subscribe(topic)
-
-
 def main() -> None:
     args = _parse_args()
     logging.basicConfig(level=logging.WARNING)
-    logging.getLogger("amqtt").setLevel(logging.ERROR)
     logging.getLogger("homie").setLevel(logging.ERROR)
     logging.getLogger("transitions").setLevel(logging.ERROR)
-    asyncio.run(_run(args.config, tick_count=args.ticks))
+    host, port = _parse_broker(args.broker)
+    _run(args.config, tick_count=args.ticks, host=host, port=port)
 
 
 def _parse_args() -> argparse.Namespace:
@@ -134,62 +63,39 @@ def _parse_args() -> argparse.Namespace:
         default=2,
         help="Number of configured ticks to publish.",
     )
+    parser.add_argument(
+        "--broker",
+        default="127.0.0.1:1883",
+        help="MQTT broker host:port (plaintext). Default matches broker-quickstart 'open'.",
+    )
     return parser.parse_args()
 
 
-async def _run(config_path: Path, *, tick_count: int) -> None:
+def _parse_broker(spec: str) -> tuple[str, int]:
+    host, _, port = spec.partition(":")
+    return host or "127.0.0.1", int(port or "1883")
+
+
+def _run(config_path: Path, *, tick_count: int, host: str, port: int) -> None:
     profile = _load_profile(config_path)
     manifest = _build_manifest(profile)
     bess_config = _build_bess_config(profile)
-    lwt_topic, lwt_payload, lwt_qos, lwt_retain = Emitter.lwt_settings(manifest)
 
-    broker = _ExampleBroker()
-    await broker.start()
+    # The Emitter owns the publishing connection (ebus-sdk builds the MqttClient
+    # from mqtt_cfg and sets the root device's LWT automatically).
+    emitter = Emitter(
+        manifest,
+        SetterRegistry(),
+        mqtt_cfg={"host": host, "port": port},
+        bess_configs=(bess_config,) if bess_config is not None else (),
+    )
+    emitter.start()
     try:
-        will = aiomqtt.Will(lwt_topic, lwt_payload, qos=lwt_qos, retain=lwt_retain)
-        async with RecordingAiomqttClient(broker.host, broker.port, will=will) as mqtt:
-            emitter = Emitter(
-                manifest,
-                SetterRegistry(),
-                cast("_MqttClientLike", mqtt),
-                bess_configs=(bess_config,) if bess_config is not None else (),
-            )
-            await emitter.start()
-            for tick in _ticks(profile)[:tick_count]:
-                await emitter.publish_tick(tick)
-
-            _print_retained_topics(mqtt.retained)
+        for tick in _ticks(profile)[:tick_count]:
+            emitter.publish_tick(tick)
+        _print_retained_tree(host, port)
     finally:
-        await broker.stop()
-
-
-@dataclass(slots=True)
-class _ExampleBroker:
-    host: str = "127.0.0.1"
-    port: int = field(default_factory=lambda: _free_port())
-    _broker: Broker | None = None
-
-    async def start(self) -> None:
-        self._broker = Broker(
-            config={
-                "listeners": {
-                    "default": {"type": "tcp", "bind": f"{self.host}:{self.port}"},
-                },
-                "plugins": {
-                    "amqtt.plugins.authentication.AnonymousAuthPlugin": {
-                        "allow_anonymous": True,
-                    },
-                },
-            },
-        )
-        await self._broker.start()
-        await asyncio.sleep(0.05)
-
-    async def stop(self) -> None:
-        if self._broker is not None:
-            with contextlib.suppress(Exception):
-                await self._broker.shutdown()
-            self._broker = None
+        emitter.stop(graceful=True)
 
 
 def _load_profile(path: Path) -> Mapping[str, object]:
@@ -406,12 +312,33 @@ def _ticks(profile: Mapping[str, object]) -> list[TickInputs]:
     return ticks
 
 
-def _print_retained_topics(retained: Mapping[str, bytes]) -> None:
-    for topic in sorted(retained):
-        payload = retained[topic].decode()
-        if topic.endswith("/$description"):
-            payload = json.dumps(json.loads(payload), sort_keys=True)
-        print(f"{topic} {payload}")
+def _print_retained_tree(host: str, port: int) -> None:
+    """Read the retained tree back through an ebus-sdk Controller and print it as
+    a sorted ``topic payload`` map, proving the full round-trip over the broker."""
+    controller = Controller(mqtt_cfg={"host": host, "port": port})
+    try:
+        controller.start_discovery()
+        time.sleep(1.5)  # discovery is async; let retained messages arrive
+        devices = controller.get_all_devices()
+        if not devices:
+            print(
+                f"# No devices discovered on {host}:{port}. Is a broker running? "
+                "Start ../broker-quickstart (open profile) or run `mosquitto -p 1883`.",
+            )
+            return
+        topics: dict[str, str] = {}
+        for dev in devices.values():
+            topics[f"ebus/5/{dev.device_id}/$state"] = str(dev.state)
+            topics[f"ebus/5/{dev.device_id}/$description"] = json.dumps(
+                dev.description, sort_keys=True
+            )
+            for node_id, props in dev.properties.items():
+                for prop_id, value in props.items():
+                    topics[f"ebus/5/{dev.device_id}/{node_id}/{prop_id}"] = str(value)
+        for topic in sorted(topics):
+            print(f"{topic} {topics[topic]}")
+    finally:
+        controller.stop()
 
 
 def _circuits_for_device_type(
@@ -477,13 +404,13 @@ def _optional_mapping(value: object) -> Mapping[str, object]:
 
 
 def _sequence_of_mappings(value: object) -> list[Mapping[str, object]]:
-    if not isinstance(value, Sequence) or isinstance(value, (str, bytes)):
+    if not isinstance(value, Sequence) or isinstance(value, str | bytes):
         return []
     return [_as_mapping(item, "sequence item") for item in value]
 
 
 def _as_sequence(value: object) -> Sequence[object]:
-    if not isinstance(value, Sequence) or isinstance(value, (str, bytes)):
+    if not isinstance(value, Sequence) or isinstance(value, str | bytes):
         msg = "expected a sequence"
         raise ValueError(msg)
     return value
@@ -498,14 +425,6 @@ def _to_float(value: object) -> float:
 
 def _to_int(value: object) -> int:
     return int(_to_float(value))
-
-
-def _free_port() -> int:
-    sock = socket.socket()
-    sock.bind(("", 0))
-    port = int(sock.getsockname()[1])
-    sock.close()
-    return port
 
 
 if __name__ == "__main__":
