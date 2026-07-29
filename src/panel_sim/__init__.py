@@ -1,4 +1,4 @@
-"""dist-enc-sim — producer-side Homie wire publisher with native-device runtime.
+"""panel-sim — producer-side Homie wire publisher with native-device runtime.
 
 Architecture (v0.3.0):
 
@@ -19,9 +19,9 @@ Producer contract (v0.3.0): build a ``DeviceManifest`` once at startup, then cal
 ``Emitter.publish_tick(TickInputs)`` each tick with signed circuit/EVSE powers,
 ``current_time``, and ``grid_online``. The emitter does the rest."""
 
-from dist_enc_sim.conventions.tab_legs import Leg, legs_for_tabs
-from dist_enc_sim.emitter import Emitter
-from dist_enc_sim.exceptions import (
+from panel_sim.conventions.tab_legs import Leg, legs_for_tabs
+from panel_sim.emitter import Emitter
+from panel_sim.exceptions import (
     EmitterError,
     EmitterStateError,
     ManifestValidationError,
@@ -29,8 +29,8 @@ from dist_enc_sim.exceptions import (
     ProfileValidationError,
     RuntimeSpecValidationError,
 )
-from dist_enc_sim.manifest import DeviceInstance, DeviceManifest
-from dist_enc_sim.manifest_physics import (
+from panel_sim.manifest import DeviceInstance, DeviceManifest
+from panel_sim.manifest_physics import (
     BessPhysics,
     CircuitPhysics,
     EvsePhysics,
@@ -39,7 +39,7 @@ from dist_enc_sim.manifest_physics import (
     PanelPhysics,
     PvPhysics,
 )
-from dist_enc_sim.native_devices import (
+from panel_sim.native_devices import (
     BESSConfig,
     BESSDevice,
     LoadSheddingConfig,
@@ -47,8 +47,8 @@ from dist_enc_sim.native_devices import (
     NativeDevice,
     NativeTickContext,
 )
-from dist_enc_sim.relay_resolver import RelayRequester, RelayResolver, RelayState
-from dist_enc_sim.snapshot import (
+from panel_sim.relay_resolver import RelayRequester, RelayResolver, RelayState
+from panel_sim.snapshot import (
     EbusBatterySnapshot,
     EbusCircuitSnapshot,
     EbusEvseSnapshot,
@@ -62,8 +62,8 @@ from dist_enc_sim.snapshot import (
     EbusPanelStatus,
     EbusPvSnapshot,
 )
-from dist_enc_sim.tick_inputs import PanelEnvelopeTick, TickInputs
-from dist_enc_sim.wire.set_router import SetterHandler, SetterRegistry
+from panel_sim.tick_inputs import PanelEnvelopeTick, TickInputs
+from panel_sim.wire.set_router import SetterHandler, SetterRegistry
 
 __all__ = [
     "BESSConfig",

@@ -16,7 +16,7 @@ repos:
           - pyyaml>=6.0
           - types-PyYAML
         pass_filenames: false
-        entry: mypy --strict src/dist_enc_sim tests
+        entry: mypy --strict src/panel_sim tests
 
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0

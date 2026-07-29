@@ -10,7 +10,7 @@ import json
 
 import pytest
 
-from dist_enc_sim import (
+from panel_sim import (
     BESSConfig,
     DeviceInstance,
     DeviceManifest,

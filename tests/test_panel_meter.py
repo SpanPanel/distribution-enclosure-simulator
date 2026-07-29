@@ -1,8 +1,8 @@
 import pytest
 
-from dist_enc_sim.conventions.tab_legs import Leg
-from dist_enc_sim.manifest_physics import CircuitPhysics, PanelPhysics
-from dist_enc_sim.panel_meter import circuit_current_a, resolve
+from panel_sim.conventions.tab_legs import Leg
+from panel_sim.manifest_physics import CircuitPhysics, PanelPhysics
+from panel_sim.panel_meter import circuit_current_a, resolve
 
 
 def _panel(**overrides: object) -> PanelPhysics:
@@ -32,7 +32,7 @@ def _circuit(
     always_on: bool = False,
 ) -> CircuitPhysics:
     if legs is None:
-        from dist_enc_sim.conventions.tab_legs import legs_for_tabs
+        from panel_sim.conventions.tab_legs import legs_for_tabs
 
         legs = legs_for_tabs(tabs)
     return CircuitPhysics(

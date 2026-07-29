@@ -25,12 +25,12 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from dist_enc_sim.exceptions import EmitterStateError
-from dist_enc_sim.snapshot import EbusPanelSnapshot
-from dist_enc_sim.wire.graph_builder import BuiltGraph
-from dist_enc_sim.wire.mapping_loader import MappingTable
-from dist_enc_sim.wire.profile_loader import ProfileTable
-from dist_enc_sim.wire.property_bag import PropertyBag
+from panel_sim.exceptions import EmitterStateError
+from panel_sim.snapshot import EbusPanelSnapshot
+from panel_sim.wire.graph_builder import BuiltGraph
+from panel_sim.wire.mapping_loader import MappingTable
+from panel_sim.wire.profile_loader import ProfileTable
+from panel_sim.wire.property_bag import PropertyBag
 
 # A ``Resolver`` is a function that pulls a single property's value from the
 # snapshot. It receives the snapshot and the per-instance id and returns the

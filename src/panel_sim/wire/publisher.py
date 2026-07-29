@@ -13,8 +13,8 @@ The ``None``-skip in ``BagBuilder.build`` means a bag never carries ``None``, so
 
 from __future__ import annotations
 
-from dist_enc_sim.wire.graph_builder import BuiltGraph
-from dist_enc_sim.wire.property_bag import PropertyBag, PropertyDiffer, PropertyKey
+from panel_sim.wire.graph_builder import BuiltGraph
+from panel_sim.wire.property_bag import PropertyBag, PropertyDiffer, PropertyKey
 
 
 class Publisher:

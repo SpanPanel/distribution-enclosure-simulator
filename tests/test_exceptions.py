@@ -1,4 +1,4 @@
-from dist_enc_sim.exceptions import (
+from panel_sim.exceptions import (
     EmitterError,
     EmitterStateError,
     ManifestValidationError,

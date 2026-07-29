@@ -1,6 +1,6 @@
 import pytest
 
-from dist_enc_sim.relay_resolver import RelayRequester, RelayResolver, RelayState
+from panel_sim.relay_resolver import RelayRequester, RelayResolver, RelayState
 
 
 def test_default_state_is_closed_unknown() -> None:

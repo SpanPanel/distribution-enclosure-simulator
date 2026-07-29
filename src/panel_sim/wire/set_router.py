@@ -19,7 +19,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 
-from dist_enc_sim.exceptions import MissingSetterError
+from panel_sim.exceptions import MissingSetterError
 
 _LOG = logging.getLogger(__name__)
 

@@ -6,7 +6,7 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
-from dist_enc_sim.exceptions import ProfileValidationError
+from panel_sim.exceptions import ProfileValidationError
 
 _DEFAULT_DIR = Path(__file__).parent / "profiles"
 

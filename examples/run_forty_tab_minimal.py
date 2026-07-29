@@ -27,7 +27,7 @@ from typing import Literal, cast
 import yaml
 from ebus_sdk import Controller
 
-from dist_enc_sim import (
+from panel_sim import (
     BESSConfig,
     DeviceInstance,
     DeviceManifest,
@@ -383,7 +383,7 @@ def _normalise_inverter_type(raw: str) -> str:
 
 
 def _stable_circuit_id(source_id: str) -> str:
-    return hashlib.sha256(f"dist-enc-sim-example:{source_id}".encode()).hexdigest()[:32]
+    return hashlib.sha256(f"panel-sim-example:{source_id}".encode()).hexdigest()[:32]
 
 
 def _bool_str(value: bool) -> str:

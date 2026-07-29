@@ -1,4 +1,4 @@
-"""Public exception hierarchy for dist-enc-sim."""
+"""Public exception hierarchy for panel-sim."""
 
 from __future__ import annotations
 

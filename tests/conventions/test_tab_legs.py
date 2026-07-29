@@ -1,6 +1,6 @@
 import pytest
 
-from dist_enc_sim.conventions.tab_legs import Leg, legs_for_tabs
+from panel_sim.conventions.tab_legs import Leg, legs_for_tabs
 
 
 def test_odd_tab_lands_on_l1() -> None:

@@ -1,4 +1,4 @@
-# dist-enc-sim
+# panel-sim
 
 A fully-loaded, spec-conformant **distribution-enclosure simulator** and producer-side Homie 5 publisher for the eBus convention. It publishes a complete eBus Homie device tree (the enclosure plus a device for every circuit, lugs pair, and integrated DER: BESS, PV, EVSE, and MID) so external developers can build and test their consumers against a realistic SPAN-like panel without beta firmware, a live panel, or the commissioned add-ons (SPAN Drive/EVSE, BESS, PV, MID) a real installation would have.
 
@@ -20,9 +20,9 @@ For the internals (the per-tick pipeline, the native BESS/load-shed devices, `/s
 Not published to PyPI. Pin via git URL or local path:
 
 ```toml
-dist-enc-sim = { git = "https://github.com/electrification-bus/distribution-enclosure-simulator", rev = "<sha>" }
+panel-sim = { git = "https://github.com/electrification-bus/distribution-enclosure-simulator", rev = "<sha>" }
 # or, during local development:
-dist-enc-sim = { path = "../distribution-enclosure-simulator", editable = true }
+panel-sim = { path = "../distribution-enclosure-simulator", editable = true }
 ```
 
 It depends on `ebus-sdk`.
@@ -82,7 +82,7 @@ A producer can build `DeviceInstance`s directly instead of using the YAML loader
 ```python
 import time
 
-from dist_enc_sim import (
+from panel_sim import (
     BESSConfig, DeviceInstance, DeviceManifest, Emitter,
     LoadSheddingConfig, SetterRegistry, TickInputs,
 )
@@ -140,7 +140,7 @@ Read the most recently published state back through `emitter.last_snapshot`. `mq
 
 ## Layout
 
-- `src/dist_enc_sim/` — the package (`emitter.py`, `manifest.py`, `wire/` profiles + publishing, `native_devices/`); see [DESIGN.md](DESIGN.md).
+- `src/panel_sim/` — the package (`emitter.py`, `manifest.py`, `wire/` profiles + publishing, `native_devices/`); see [DESIGN.md](DESIGN.md).
 - `examples/` — the runnable example and its YAML definition.
 - `tests/` — the pytest suite.
 
@@ -148,7 +148,7 @@ Read the most recently published state back through `emitter.last_snapshot`. `mq
 
 ```bash
 uv run pytest
-uv run mypy --strict src/dist_enc_sim tests
+uv run mypy --strict src/panel_sim tests
 uv run ruff check src tests
 ```
 

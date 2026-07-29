@@ -1,6 +1,6 @@
 import pytest
 
-from dist_enc_sim.manifest import DeviceInstance, DeviceManifest
+from panel_sim.manifest import DeviceInstance, DeviceManifest
 
 
 def _instance(

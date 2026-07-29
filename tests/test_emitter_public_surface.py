@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pytest
 
-from dist_enc_sim import (
+from panel_sim import (
     BESSConfig,
     BessPhysics,
     CircuitPhysics,

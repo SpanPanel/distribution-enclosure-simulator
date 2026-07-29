@@ -18,11 +18,11 @@ from typing import Any
 
 import ebus_sdk
 
-from dist_enc_sim.exceptions import ManifestValidationError, ProfileValidationError
-from dist_enc_sim.manifest import DeviceInstance, DeviceManifest
-from dist_enc_sim.wire._sdk_seam import make_property
-from dist_enc_sim.wire.mapping_loader import MappingDescriptor, MappingTable
-from dist_enc_sim.wire.profile_loader import Profile, ProfileTable
+from panel_sim.exceptions import ManifestValidationError, ProfileValidationError
+from panel_sim.manifest import DeviceInstance, DeviceManifest
+from panel_sim.wire._sdk_seam import make_property
+from panel_sim.wire.mapping_loader import MappingDescriptor, MappingTable
+from panel_sim.wire.profile_loader import Profile, ProfileTable
 
 PropertyKey = tuple[str, str, str]
 

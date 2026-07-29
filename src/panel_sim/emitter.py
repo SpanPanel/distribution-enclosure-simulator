@@ -16,21 +16,21 @@ import logging
 import time
 from typing import Any
 
-from dist_enc_sim.energy_integrator import EnergyIntegrator
-from dist_enc_sim.exceptions import EmitterStateError
-from dist_enc_sim.manifest import DeviceManifest
-from dist_enc_sim.manifest_physics import ManifestPhysicsView
-from dist_enc_sim.native_devices import (
+from panel_sim.energy_integrator import EnergyIntegrator
+from panel_sim.exceptions import EmitterStateError
+from panel_sim.manifest import DeviceManifest
+from panel_sim.manifest_physics import ManifestPhysicsView
+from panel_sim.native_devices import (
     BESSConfig,
     BESSDevice,
     LoadSheddingConfig,
     LoadSheddingDevice,
     NativeTickContext,
 )
-from dist_enc_sim.panel_meter import circuit_current_a
-from dist_enc_sim.panel_meter import resolve as resolve_panel
-from dist_enc_sim.relay_resolver import RelayResolver, RelayState
-from dist_enc_sim.snapshot import (
+from panel_sim.panel_meter import circuit_current_a
+from panel_sim.panel_meter import resolve as resolve_panel
+from panel_sim.relay_resolver import RelayResolver, RelayState
+from panel_sim.snapshot import (
     EbusBatterySnapshot,
     EbusCircuitSnapshot,
     EbusEvseSnapshot,
@@ -46,13 +46,13 @@ from dist_enc_sim.snapshot import (
     EbusPanelStatus,
     EbusPvSnapshot,
 )
-from dist_enc_sim.tick_inputs import TickInputs
-from dist_enc_sim.wire.bag_builder import BagBuilder
-from dist_enc_sim.wire.graph_builder import build_graph
-from dist_enc_sim.wire.mapping_loader import load_mapping_table
-from dist_enc_sim.wire.profile_loader import load_profiles
-from dist_enc_sim.wire.publisher import Publisher
-from dist_enc_sim.wire.set_router import (
+from panel_sim.tick_inputs import TickInputs
+from panel_sim.wire.bag_builder import BagBuilder
+from panel_sim.wire.graph_builder import build_graph
+from panel_sim.wire.mapping_loader import load_mapping_table
+from panel_sim.wire.profile_loader import load_profiles
+from panel_sim.wire.publisher import Publisher
+from panel_sim.wire.set_router import (
     SetterRegistry,
     check_setter_coverage,
     make_set_callback,

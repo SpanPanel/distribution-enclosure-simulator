@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import pytest
 
-from dist_enc_sim.exceptions import MissingSetterError
-from dist_enc_sim.wire.set_router import (
+from panel_sim.exceptions import MissingSetterError
+from panel_sim.wire.set_router import (
     SetterRegistry,
     check_setter_coverage,
     make_set_callback,
