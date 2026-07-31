@@ -1,0 +1,36 @@
+{
+  "$schema": "https://ebus.energy/schemas/ebus-spec.json",
+  "spec_repo": "https://github.com/electrification-bus/specification",
+  "synced_commit": "16b00305cd4f5f49e448b4f9a7278e34939c0deb",
+  "synced_date": "2026-07-30",
+  "role": "publisher",
+  "framework": "0.7",
+  "implements": {
+    "capabilities": {
+      "info": "0.2",
+      "meter": "0.2",
+      "switch": "0.1",
+      "breaker": "0.1",
+      "connection": "0.1",
+      "load-shed": "0.3",
+      "pcs": "0.3",
+      "shed": "0.2",
+      "shed-forecast": "0.1",
+      "grid": "0.1",
+      "power-flows": "0.1",
+      "door": "0.1",
+      "status": "0.1",
+      "soc": "0.1"
+    },
+    "devices": {
+      "distribution-enclosure": "0.12",
+      "circuit": "0.3",
+      "bess": "0.14"
+    },
+    "registries": {
+      "capability-types": "0.19",
+      "device-types": "0.4"
+    }
+  },
+  "notes": "role=publisher: panel-sim publishes a full Homie 5 distribution-enclosure tree (enclosure + circuits + upstream/downstream lugs + bess/pv/evse/mid children) as a producer-side reference/test fixture for the eBus convention. Initial adoption of the drift facility; profile reconciliation is tracked in DESIM-a5p.15 and its sub-issues. Capabilities are pinned to what the wire profiles publish today AND that exist in the current spec catalog; known content drifts still being reconciled: evse still publishes the retired `config` grab-bag (migrating to `charge-limit`, DESIM-a5p.15.1, hence `charge-limit` is not yet pinned); panel still publishes the retired `pcs/grid-islandable` (DESIM-a5p.15.2); panel publishes `shed/policy` read-only vs the catalog's settable=true (DESIM-a5p.15.3); pv omits `meter` (DESIM-a5p.15.4); and `info/product-name` was retired in info 0.2 (to drop across bess/evse/mid/pv in favor of model/part-number). Device coverage: pv/evse/mid/lugs have no standalone versioned device model yet (pv gated on SPEC-730, evse on SPEC-a8e, mid Planned on SPEC-9jz, lugs unmodeled) and are covered transitively as child device_types of distribution-enclosure 0.12, so they are not separately pinned. The property-JSON shape contract (conventions/property-json, property-schema-v1 v0.1) is NOT pinned here because spec-provenance's implements schema has only capabilities/devices/registries slots (no conventions slot); to be added once the provenance schema gains implements.conventions. Vendoring the spec capability catalogs to single-source datatypes/units is step 2 (DESIM-a5p.15)."
+}
