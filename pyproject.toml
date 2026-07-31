@@ -29,6 +29,7 @@ packages = ["src/panel_sim"]
 [tool.hatch.build.targets.wheel.force-include]
 "src/panel_sim/wire/profiles" = "panel_sim/wire/profiles"
 "src/panel_sim/wire/mapping" = "panel_sim/wire/mapping"
+"src/panel_sim/wire/catalogs" = "panel_sim/wire/catalogs"
 
 [tool.ruff]
 target-version = "py311"
