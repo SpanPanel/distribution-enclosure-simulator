@@ -35,7 +35,6 @@
     "pcs": {
       "type": "energy.ebus.capability.pcs",
       "properties": {
-        "grid-islandable": {"name": "Capable of operating with power while disconnected from the grid", "datatype": "boolean"},
         "enabled": {"name": "PCS system enabled", "datatype": "boolean"},
         "active": {"name": "PCS system actively controlling one (or more) loads", "datatype": "boolean"},
         "import-limit": {"name": "The power import limit currently being managed to", "datatype": "float", "unit": "A"},

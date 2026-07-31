@@ -233,7 +233,7 @@ def test_pv_inverter_type_validated() -> None:
         display_name="Solar",
         metadata={
             "vendor-name": "Enphase",
-            "nameplate-capacity-w": "5000",
+            "nominal-power-w": "5000",
             "inverter-type": "hybrid",
         },
     )
@@ -246,7 +246,7 @@ def test_pv_inverter_type_validated() -> None:
         display_name="Solar",
         metadata={
             "vendor-name": "Enphase",
-            "nameplate-capacity-w": "5000",
+            "nominal-power-w": "5000",
             "inverter-type": "string",
         },
     )
@@ -261,7 +261,7 @@ def test_evse_required_fields() -> None:
         display_name="EV",
         metadata={
             "vendor-name": "SPAN",
-            "product-name": "SPAN Drive",
+            "model": "SPAN Drive",
             "part-number": "SPN-DRV-001",
             "serial-number": "SIM-EVSE-1",
             "firmware-version": "1.0",

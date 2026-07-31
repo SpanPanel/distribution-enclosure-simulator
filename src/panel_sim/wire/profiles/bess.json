@@ -6,8 +6,8 @@
       "type": "energy.ebus.capability.info",
       "properties": {
         "vendor-name": {"name": "Vendor name", "datatype": "string"},
-        "product-name": {"name": "Product name", "datatype": "string"},
         "model": {"name": "Model", "datatype": "string"},
+        "part-number": {"name": "Part number", "datatype": "string"},
         "serial-number": {"name": "Serial number", "datatype": "string"},
         "firmware-version": {"name": "Firmware version", "datatype": "string"},
         "nameplate-capacity": {"name": "Nameplate capacity", "datatype": "float", "unit": "kWh"}

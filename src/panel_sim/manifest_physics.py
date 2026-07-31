@@ -72,7 +72,7 @@ class BessPhysics:
     vendor_name: str
     nameplate_capacity_kwh: float
     initial_soe_kwh: float | None
-    product_name: str | None
+    part_number: str | None
     model: str | None
     serial_number: str | None
     firmware_version: str | None
@@ -83,9 +83,9 @@ class BessPhysics:
 @dataclass(frozen=True, slots=True)
 class PvPhysics:
     vendor_name: str
-    nameplate_capacity_w: float
+    nominal_power_w: float
     inverter_type: str  # "hybrid" | "ac-coupled"
-    product_name: str | None
+    model: str | None
     serial_number: str | None
     firmware_version: str | None
     relative_position: str | None
@@ -95,7 +95,7 @@ class PvPhysics:
 @dataclass(frozen=True, slots=True)
 class EvsePhysics:
     vendor_name: str
-    product_name: str
+    model: str
     part_number: str
     serial_number: str
     firmware_version: str
@@ -111,7 +111,6 @@ class MidPhysics:
 
     vendor_name: str | None
     serial_number: str | None
-    product_name: str | None
     model: str | None
     firmware_version: str | None
     hardware_version: str | None
@@ -399,7 +398,7 @@ def _parse_bess(inst: DeviceInstance) -> BessPhysics:
         vendor_name=_require(md, "vendor-name"),
         nameplate_capacity_kwh=_req_float(md, "nameplate-capacity-kwh"),
         initial_soe_kwh=initial_soe,
-        product_name=_opt_str(md, "product-name"),
+        part_number=_opt_str(md, "part-number"),
         model=_opt_str(md, "model"),
         serial_number=_opt_str(md, "serial-number"),
         firmware_version=_opt_str(md, "firmware-version") or _opt_str(md, "software-version"),
@@ -418,9 +417,9 @@ def _parse_pv(inst: DeviceInstance) -> PvPhysics:
         )
     return PvPhysics(
         vendor_name=_require(md, "vendor-name"),
-        nameplate_capacity_w=_req_float(md, "nameplate-capacity-w"),
+        nominal_power_w=_req_float(md, "nominal-power-w"),
         inverter_type=inverter_type,
-        product_name=_opt_str(md, "product-name"),
+        model=_opt_str(md, "model"),
         serial_number=_opt_str(md, "serial-number"),
         firmware_version=_opt_str(md, "firmware-version") or _opt_str(md, "software-version"),
         relative_position=_opt_str(md, "relative-position") or "IN_PANEL",
@@ -432,7 +431,7 @@ def _parse_evse(inst: DeviceInstance) -> EvsePhysics:
     md = inst.metadata
     return EvsePhysics(
         vendor_name=_require(md, "vendor-name"),
-        product_name=_require(md, "product-name"),
+        model=_require(md, "model"),
         part_number=_require(md, "part-number"),
         serial_number=_require(md, "serial-number"),
         firmware_version=_opt_str(md, "firmware-version") or _require(md, "software-version"),
@@ -446,7 +445,6 @@ def _parse_mid(inst: DeviceInstance) -> MidPhysics:
     return MidPhysics(
         vendor_name=_opt_str(md, "vendor-name"),
         serial_number=_opt_str(md, "serial-number"),
-        product_name=_opt_str(md, "product-name"),
         model=_opt_str(md, "model"),
         firmware_version=_opt_str(md, "firmware-version") or _opt_str(md, "software-version"),
         hardware_version=_opt_str(md, "hardware-version"),

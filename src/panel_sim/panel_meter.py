@@ -50,7 +50,6 @@ class PanelMeterReading:
     dsm_state: str
     current_run_config: str
     dominant_power_source: str | None  # "GRID" | "BATTERY" | None
-    grid_islandable: bool
     power_flow_pv: float
     power_flow_battery: float
     power_flow_grid: float
@@ -166,7 +165,6 @@ def resolve(
         dsm_state=dsm_state,
         current_run_config=current_run_config,
         dominant_power_source=dominant_power_source,
-        grid_islandable=panel.islandable,
         power_flow_pv=pv_available_w,
         power_flow_battery=battery_w,
         power_flow_grid=grid_w,

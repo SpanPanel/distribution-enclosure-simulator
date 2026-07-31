@@ -332,19 +332,6 @@ def test_feedthrough_per_leg_currents() -> None:
     assert r.upstream_l2_current_a == pytest.approx(10.0)
 
 
-def test_islandable_passed_through_from_panel() -> None:
-    panel = _panel(islandable=True)
-    r = resolve(
-        panel=panel,
-        circuits={},
-        gated_powers={},
-        battery_w=0.0,
-        grid_online=True,
-        has_battery=False,
-    )
-    assert r.grid_islandable is True
-
-
 def test_dsm_and_run_config_track_grid_state() -> None:
     panel = _panel()
     on = resolve(

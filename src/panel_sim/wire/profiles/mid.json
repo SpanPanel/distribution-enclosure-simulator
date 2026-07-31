@@ -7,7 +7,6 @@
       "properties": {
         "vendor-name": {"name": "Vendor name", "datatype": "string"},
         "serial-number": {"name": "Serial number", "datatype": "string"},
-        "product-name": {"name": "Product name", "datatype": "string"},
         "model": {"name": "Model", "datatype": "string"},
         "firmware-version": {"name": "Firmware version", "datatype": "string"},
         "hardware-version": {"name": "Hardware version", "datatype": "string"}

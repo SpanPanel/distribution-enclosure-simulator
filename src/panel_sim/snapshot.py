@@ -66,8 +66,8 @@ class EbusPvSnapshot:
     node_id: str = ""
     feed_circuit_id: str | None = ""
     vendor_name: str | None = None
-    product_name: str | None = None
-    nameplate_capacity_w: float | None = None
+    model: str | None = None
+    nominal_power_w: float | None = None
     firmware_version: str | None = None
     serial_number: str | None = None
     relative_position: str | None = None
@@ -86,7 +86,7 @@ class EbusEvseSnapshot:
     user_max_charge_current_a: int | None = None
 
     vendor_name: str | None = None
-    product_name: str | None = None
+    model: str | None = None
     part_number: str | None = None
     serial_number: str | None = None
     firmware_version: str | None = None
@@ -102,7 +102,7 @@ class EbusBatterySnapshot:
     active_power_w: float = 0.0  # Positive = discharging, negative = charging
 
     vendor_name: str | None = None
-    product_name: str | None = None
+    part_number: str | None = None
     model: str | None = None
     serial_number: str | None = None
     firmware_version: str | None = None
@@ -144,7 +144,6 @@ class EbusMidSnapshot:
     instance_id: str
     vendor_name: str | None = None
     serial_number: str | None = None
-    product_name: str | None = None
     model: str | None = None
     firmware_version: str | None = None
     hardware_version: str | None = None
@@ -223,7 +222,6 @@ class EbusPanelPcs:
     ``EbusPcsSnapshot`` so panel PCS state has exactly one home."""
 
     main_breaker_rating_a: int | None = None
-    grid_islandable: bool | None = None
     binding_constraint: str = "NONE"
     dominant_power_source: str | None = None
     grid_state: str | None = None

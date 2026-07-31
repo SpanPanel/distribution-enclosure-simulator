@@ -195,8 +195,8 @@ def _bess_instance(profile: Mapping[str, object]) -> DeviceInstance | None:
         "relative-position": str(bess.get("relative_position", "UPSTREAM")),
     }
     for source_key, metadata_key in (
-        ("product_name", "product-name"),
-        ("model", "model"),
+        ("product_name", "model"),
+        ("part_number", "part-number"),
         ("serial_number", "serial-number"),
         ("firmware_version", "firmware-version"),
         ("initial_soe_kwh", "initial-soe-kwh"),
@@ -220,7 +220,7 @@ def _mid_instance(profile: Mapping[str, object]) -> DeviceInstance | None:
         metadata["serial-number"] = f"{serial}-mid"
     product = bess.get("mid_product_name")
     if product is not None:
-        metadata["product-name"] = str(product)
+        metadata["model"] = str(product)
     return DeviceInstance("mid", f"{bess_id}-mid", "Microgrid Interconnect Device", metadata)
 
 
@@ -232,7 +232,8 @@ def _pv_instance(profile: Mapping[str, object]) -> DeviceInstance | None:
     nameplate_w = template.get("nameplate_capacity_w", 5000.0)
     metadata = {
         "vendor-name": "Enphase",
-        "nameplate-capacity-w": str(nameplate_w),
+        "model": "IQ8PLUS-72-2-US",
+        "nominal-power-w": str(nameplate_w),
         "inverter-type": _normalise_inverter_type(
             str(template.get("inverter_type", "ac-coupled")),
         ),
@@ -256,7 +257,7 @@ def _evse_instances(profile: Mapping[str, object]) -> list[DeviceInstance]:
                 str(circuit.get("name", "EV Charger")),
                 metadata={
                     "vendor-name": "SPAN",
-                    "product-name": "SPAN Drive",
+                    "model": "SPAN Drive",
                     "part-number": "SPN-DRV-001",
                     "serial-number": (
                         f"SIM-EVSE-{panel_id}" if idx == 1 else f"SIM-EVSE-{panel_id}-{idx}"

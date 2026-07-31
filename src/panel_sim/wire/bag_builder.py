@@ -184,7 +184,6 @@ _RESOLVERS: dict[tuple[str, str], Resolver] = {
     ("panel", "meter/voltage-a"): _panel_resolver(lambda s: s.meter.l1_voltage),
     ("panel", "meter/voltage-b"): _panel_resolver(lambda s: s.meter.l2_voltage),
     ("panel", "breaker/rating"): _panel_resolver(lambda s: s.pcs.main_breaker_rating_a),
-    ("panel", "pcs/grid-islandable"): _panel_resolver(lambda s: s.pcs.grid_islandable),
     ("panel", "pcs/enabled"): _panel_resolver(lambda s: s.pcs.enabled),
     ("panel", "pcs/active"): _panel_resolver(lambda s: s.pcs.active),
     ("panel", "pcs/import-limit"): _panel_resolver(lambda s: s.pcs.import_limit_a),
@@ -286,7 +285,7 @@ _RESOLVERS: dict[tuple[str, str], Resolver] = {
     ("lugs", "connection/count"): _lugs_field("connection_count"),
     # ---- bess -----------------------------------------------------------
     ("bess", "info/vendor-name"): _bess_field("vendor_name"),
-    ("bess", "info/product-name"): _bess_field("product_name"),
+    ("bess", "info/part-number"): _bess_field("part_number"),
     ("bess", "info/model"): _bess_field("model"),
     ("bess", "info/serial-number"): _bess_field("serial_number"),
     ("bess", "info/firmware-version"): _bess_field("firmware_version"),
@@ -297,13 +296,13 @@ _RESOLVERS: dict[tuple[str, str], Resolver] = {
     ("bess", "status/communication-state"): _bess_field("communication"),
     # ---- pv -------------------------------------------------------------
     ("pv", "info/vendor-name"): _pv_field("vendor_name"),
-    ("pv", "info/product-name"): _pv_field("product_name"),
+    ("pv", "info/model"): _pv_field("model"),
     ("pv", "info/serial-number"): _pv_field("serial_number"),
     ("pv", "info/firmware-version"): _pv_field("firmware_version"),
-    ("pv", "info/nameplate-capacity"): _pv_field("nameplate_capacity_w"),
+    ("pv", "info/nominal-power"): _pv_field("nominal_power_w"),
     # ---- evse -----------------------------------------------------------
     ("evse", "info/vendor-name"): _evse_field("vendor_name"),
-    ("evse", "info/product-name"): _evse_field("product_name"),
+    ("evse", "info/model"): _evse_field("model"),
     ("evse", "info/part-number"): _evse_field("part_number"),
     ("evse", "info/serial-number"): _evse_field("serial_number"),
     ("evse", "info/firmware-version"): _evse_field("firmware_version"),
@@ -315,7 +314,6 @@ _RESOLVERS: dict[tuple[str, str], Resolver] = {
     # ---- mid ------------------------------------------------------------
     ("mid", "info/vendor-name"): _mid_field("vendor_name"),
     ("mid", "info/serial-number"): _mid_field("serial_number"),
-    ("mid", "info/product-name"): _mid_field("product_name"),
     ("mid", "info/model"): _mid_field("model"),
     ("mid", "info/firmware-version"): _mid_field("firmware_version"),
     ("mid", "info/hardware-version"): _mid_field("hardware_version"),

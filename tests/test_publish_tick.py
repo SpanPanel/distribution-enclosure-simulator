@@ -158,7 +158,6 @@ def test_publish_tick_uses_parent_child_topic_shape(
     )
     retained = rec.retained
     assert retained["ebus/5/abc-123/info/firmware-version"] == "sim/v0.1.0"
-    assert retained["ebus/5/abc-123/pcs/grid-islandable"] == "false"
     assert retained["ebus/5/kitchen/meter/active-power"] == "-500.0"
     assert retained["ebus/5/kitchen/info/spaces"] == "1"
     assert retained["ebus/5/kitchen/switch/relay-requester"] == "NONE"

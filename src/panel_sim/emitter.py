@@ -394,7 +394,7 @@ class Emitter:
             )
             snap.instance_id = bess_id
             snap.vendor_name = bphys.vendor_name
-            snap.product_name = bphys.product_name
+            snap.part_number = bphys.part_number
             snap.model = bphys.model
             snap.serial_number = bphys.serial_number
             snap.firmware_version = bphys.firmware_version
@@ -504,9 +504,9 @@ class Emitter:
                 node_id=pv_id,
                 feed_circuit_id=pv_phys.feed,
                 vendor_name=pv_phys.vendor_name,
-                product_name=pv_phys.product_name,
+                model=pv_phys.model,
                 serial_number=pv_phys.serial_number,
-                nameplate_capacity_w=pv_phys.nameplate_capacity_w,
+                nominal_power_w=pv_phys.nominal_power_w,
                 firmware_version=pv_phys.firmware_version,
                 relative_position=pv_phys.relative_position,
             )
@@ -567,7 +567,7 @@ class Emitter:
                     eid, int(ephys.max_current_a)
                 ),
                 vendor_name=ephys.vendor_name,
-                product_name=ephys.product_name,
+                model=ephys.model,
                 part_number=ephys.part_number,
                 serial_number=ephys.serial_number,
                 firmware_version=ephys.firmware_version,
@@ -582,7 +582,6 @@ class Emitter:
                 instance_id=mid_id,
                 vendor_name=mphys.vendor_name,
                 serial_number=mphys.serial_number,
-                product_name=mphys.product_name,
                 model=mphys.model,
                 firmware_version=mphys.firmware_version,
                 hardware_version=mphys.hardware_version,
@@ -644,7 +643,6 @@ class Emitter:
         )
         pcs = EbusPanelPcs(
             main_breaker_rating_a=panel_phys.main_breaker_rating_a,
-            grid_islandable=meter.grid_islandable,
             dominant_power_source=(
                 self._dominant_power_source_override
                 if self._dominant_power_source_override is not None
