@@ -5,31 +5,53 @@
     "info": {
       "type": "energy.ebus.capability.info",
       "properties": {
-        "vendor-name": {"name": "Vendor name", "datatype": "string"},
-        "model": {"name": "Model", "datatype": "string"},
-        "part-number": {"name": "Part number", "datatype": "string"},
-        "serial-number": {"name": "Serial number", "datatype": "string"},
-        "firmware-version": {"name": "Firmware version", "datatype": "string"},
-        "nameplate-capacity": {"name": "Nameplate capacity", "datatype": "float", "unit": "kWh"}
+        "vendor-name": {
+          "name": "Vendor name"
+        },
+        "model": {
+          "name": "Model"
+        },
+        "part-number": {
+          "name": "Part number"
+        },
+        "serial-number": {
+          "name": "Serial number"
+        },
+        "firmware-version": {
+          "name": "Firmware version"
+        },
+        "nameplate-capacity": {
+          "name": "Nameplate capacity",
+          "unit": "kWh"
+        }
       }
     },
     "soc": {
       "type": "energy.ebus.capability.soc",
       "properties": {
-        "soc": {"name": "State of charge", "datatype": "float", "unit": "%"},
-        "soe": {"name": "State of energy", "datatype": "float", "unit": "kWh"}
+        "soc": {
+          "name": "State of charge"
+        },
+        "soe": {
+          "name": "State of energy",
+          "unit": "kWh"
+        }
       }
     },
     "meter": {
       "type": "energy.ebus.capability.meter",
       "properties": {
-        "active-power": {"name": "Active power", "datatype": "float", "unit": "W"}
+        "active-power": {
+          "name": "Active power"
+        }
       }
     },
     "status": {
       "type": "energy.ebus.capability.status",
       "properties": {
-        "communication-state": {"name": "Communication state", "datatype": "enum", "format": "OK,DEGRADED,LOST,UNKNOWN"}
+        "communication-state": {
+          "name": "Communication state"
+        }
       }
     }
   }

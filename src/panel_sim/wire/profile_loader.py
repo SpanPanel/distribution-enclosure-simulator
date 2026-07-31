@@ -189,7 +189,7 @@ def _hydrate_property(
     return ProfileProperty(
         name=sel.get("name") or catalog_def.get("name") or key,
         datatype=catalog_def["datatype"],
-        unit=catalog_def.get("unit"),
-        format=catalog_def.get("format"),
+        unit=sel.get("unit", catalog_def.get("unit")),
+        format=sel.get("format", catalog_def.get("format")),
         settable=bool(sel.get("settable", catalog_def.get("settable", False))),
     )

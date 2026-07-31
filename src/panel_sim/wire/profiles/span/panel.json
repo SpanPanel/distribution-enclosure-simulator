@@ -1,0 +1,49 @@
+{
+  "$version": 1,
+  "type": "energy.ebus.device.distribution-enclosure",
+  "capabilities": {
+    "status": {
+      "type": "energy.ebus.capability.status",
+      "properties": {
+        "relay": {
+          "name": "Main relay",
+          "datatype": "enum",
+          "format": "UNKNOWN,OPEN,CLOSED"
+        },
+        "ethernet": {
+          "name": "Is Ethernet network interface operational?",
+          "datatype": "boolean"
+        },
+        "wifi": {
+          "name": "Is Wi-Fi network interface operational?",
+          "datatype": "boolean"
+        },
+        "wifi-ssid": {
+          "name": "SSID to which Wi-Fi network interface is connected",
+          "datatype": "string"
+        },
+        "cloud-connection": {
+          "name": "Device connected to vendor cloud?",
+          "datatype": "enum",
+          "format": "UNKNOWN,UNCONNECTED,CONNECTED"
+        },
+        "postal-code": {
+          "name": "Postal (Zip) code",
+          "datatype": "string"
+        },
+        "time-zone": {
+          "name": "Time zone",
+          "datatype": "string"
+        }
+      }
+    },
+    "shed": {
+      "type": "energy.ebus.capability.shed",
+      "properties": {
+        "policy": {
+          "settable": false
+        }
+      }
+    }
+  }
+}

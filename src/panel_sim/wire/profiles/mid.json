@@ -5,19 +5,35 @@
     "info": {
       "type": "energy.ebus.capability.info",
       "properties": {
-        "vendor-name": {"name": "Vendor name", "datatype": "string"},
-        "serial-number": {"name": "Serial number", "datatype": "string"},
-        "model": {"name": "Model", "datatype": "string"},
-        "firmware-version": {"name": "Firmware version", "datatype": "string"},
-        "hardware-version": {"name": "Hardware version", "datatype": "string"}
+        "vendor-name": {
+          "name": "Vendor name"
+        },
+        "serial-number": {
+          "name": "Serial number"
+        },
+        "model": {
+          "name": "Model"
+        },
+        "firmware-version": {
+          "name": "Firmware version"
+        },
+        "hardware-version": {
+          "name": "Hardware version"
+        }
       }
     },
     "grid": {
       "type": "energy.ebus.capability.grid",
       "properties": {
-        "islanding-state": {"name": "Islanding state of the BESS-integrated grid-forming device", "datatype": "enum", "format": "ON_GRID,OFF_GRID,UNKNOWN"},
-        "grid-state": {"name": "Sensed grid condition", "datatype": "enum", "format": "UP,DOWN,DEGRADED,UNKNOWN"},
-        "grid-forming-entity": {"name": "Identity of the currently grid-forming entity", "datatype": "string"}
+        "islanding-state": {
+          "name": "Islanding state of the BESS-integrated grid-forming device"
+        },
+        "grid-state": {
+          "name": "Sensed grid condition"
+        },
+        "grid-forming-entity": {
+          "name": "Identity of the currently grid-forming entity"
+        }
       }
     }
   }

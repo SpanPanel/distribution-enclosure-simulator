@@ -5,11 +5,23 @@
     "info": {
       "type": "energy.ebus.capability.info",
       "properties": {
-        "vendor-name": {"name": "Vendor name", "datatype": "string"},
-        "model": {"name": "Model", "datatype": "string"},
-        "serial-number": {"name": "Serial number", "datatype": "string"},
-        "firmware-version": {"name": "Firmware version", "datatype": "string"},
-        "nominal-power": {"name": "Nominal power", "datatype": "float", "unit": "W"}
+        "vendor-name": {
+          "name": "Vendor name"
+        },
+        "model": {
+          "name": "Model"
+        },
+        "serial-number": {
+          "name": "Serial number"
+        },
+        "firmware-version": {
+          "name": "Firmware version"
+        },
+        "nominal-power": {
+          "name": "Nominal power",
+          "datatype": "float",
+          "unit": "W"
+        }
       }
     }
   }
