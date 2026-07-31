@@ -12,6 +12,7 @@ diff cache and read-back via ``last_snapshot``; producers do not construct it.""
 
 from __future__ import annotations
 
+import json
 import logging
 import time
 from typing import Any
@@ -50,7 +51,7 @@ from panel_sim.tick_inputs import TickInputs
 from panel_sim.wire.bag_builder import BagBuilder
 from panel_sim.wire.graph_builder import build_graph
 from panel_sim.wire.mapping_loader import load_mapping_table
-from panel_sim.wire.profile_loader import load_profiles
+from panel_sim.wire.profile_loader import Variant, load_profiles
 from panel_sim.wire.publisher import Publisher
 from panel_sim.wire.set_router import (
     SetterRegistry,
@@ -73,11 +74,15 @@ class Emitter:
         mqtt_cfg: dict[str, Any] | None = None,
         bess_configs: tuple[BESSConfig, ...] = (),
         load_shedding_config: LoadSheddingConfig | None = None,
+        variant: Variant = "span",
     ) -> None:
         self._manifest = manifest
         self._mqtt_cfg = dict(mqtt_cfg) if mqtt_cfg is not None else dict(_DEFAULT_MQTT_CFG)
 
-        self._profiles = load_profiles()
+        # variant="span" (default) publishes the SPAN-faithful surface (status
+        # diagnostics, read-only shed/policy, the legacy evse config); "reference"
+        # is the vendor-neutral spec-conformant tree.
+        self._profiles = load_profiles(variant=variant)
         self._mapping = load_mapping_table()
         self._mapping.validate_against(self._profiles)
 
@@ -111,6 +116,7 @@ class Emitter:
         self._name_overrides: dict[str, str] = {}
         self._dominant_power_source_override: str | None = None
         self._asserted_islanding_override: str | None = None
+        self._shed_policy_override: str | None = None
         self._evse_user_max_override: dict[str, int] = {}
 
         for cid, cphys in self._physics.all_circuits().items():
@@ -343,6 +349,16 @@ class Emitter:
             del entity_class, instance_id, prop_path
             self._asserted_islanding_override = str(value).upper()
 
+        def on_shed_policy(
+            entity_class: str,
+            instance_id: str,
+            prop_path: str,
+            value: object,
+        ) -> None:
+            del entity_class, instance_id, prop_path
+            # A json-datatype /set delivers a parsed object; store the policy as JSON text.
+            self._shed_policy_override = value if isinstance(value, str) else json.dumps(value)
+
         def on_evse_user_max(
             entity_class: str,
             instance_id: str,
@@ -358,6 +374,8 @@ class Emitter:
             registry.register("circuit", "load-shed/priority", on_shed_priority)
         if registry.get("panel", "shed/asserted-islanding-state") is None:
             registry.register("panel", "shed/asserted-islanding-state", on_asserted_islanding)
+        if registry.get("panel", "shed/policy") is None:
+            registry.register("panel", "shed/policy", on_shed_policy)
         if registry.get("evse", "config/user-max-charge-current") is None:
             registry.register("evse", "config/user-max-charge-current", on_evse_user_max)
 
@@ -660,7 +678,8 @@ class Emitter:
         )
         shed = EbusPanelShed(
             asserted_islanding_state=self._asserted_islanding_override or "NONE",
-            policy=(
+            policy=self._shed_policy_override
+            or (
                 '{"algorithm": "soc-priority.v1", '
                 '"parameters": {"soc-threshold-shed": 20, "soc-threshold-release": 30}}'
             ),
