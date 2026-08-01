@@ -156,10 +156,39 @@ def _circuit_shed_priority(snapshot: EbusPanelSnapshot, instance_id: str) -> obj
 
 
 def _circuit_wire_active_power(snapshot: EbusPanelSnapshot, instance_id: str) -> object:
+    """Circuit ``active-power`` in the enclosure reference frame.
+
+    The snapshot's ``instant_power_w`` is device-frame (positive = the circuit is
+    consuming). The wire is enclosure-frame: positive means power flowing *into*
+    the enclosure busbar (a circuit backfeeding, e.g. a PV inverter), negative
+    means power flowing *out* of the busbar to a load. Hence the negation.
+
+    The energy accumulators below must be relabelled for the same reason — see
+    ``_circuit_wire_imported_energy``."""
     circuit = snapshot.circuits.get(instance_id)
     if circuit is None:
         return None
     return 0.0 if circuit.instant_power_w == 0 else -circuit.instant_power_w
+
+
+def _circuit_wire_imported_energy(snapshot: EbusPanelSnapshot, instance_id: str) -> object:
+    """Circuit ``imported-energy`` — energy imported *by the enclosure* from the
+    circuit, i.e. the circuit backfeeding the busbar. That is the snapshot's
+    ``produced_energy_wh``."""
+    circuit = snapshot.circuits.get(instance_id)
+    if circuit is None:
+        return None
+    return circuit.produced_energy_wh
+
+
+def _circuit_wire_exported_energy(snapshot: EbusPanelSnapshot, instance_id: str) -> object:
+    """Circuit ``exported-energy`` — energy exported *by the enclosure* to the
+    circuit, i.e. normal load consumption. That is the snapshot's
+    ``consumed_energy_wh``."""
+    circuit = snapshot.circuits.get(instance_id)
+    if circuit is None:
+        return None
+    return circuit.consumed_energy_wh
 
 
 def _upper_lugs_direction(snapshot: EbusPanelSnapshot, instance_id: str) -> object:
@@ -260,8 +289,8 @@ _RESOLVERS: dict[tuple[str, str], Resolver] = {
     ("circuit", "breaker/poles"): _circuit_poles,
     ("circuit", "meter/current"): _circuit_field("current_a"),
     ("circuit", "meter/active-power"): _circuit_wire_active_power,
-    ("circuit", "meter/imported-energy"): _circuit_field("consumed_energy_wh"),
-    ("circuit", "meter/exported-energy"): _circuit_field("produced_energy_wh"),
+    ("circuit", "meter/imported-energy"): _circuit_wire_imported_energy,
+    ("circuit", "meter/exported-energy"): _circuit_wire_exported_energy,
     ("circuit", "load-shed/priority"): _circuit_shed_priority,
     ("circuit", "pcs/managed"): _circuit_field("pcs_managed"),
     ("circuit", "pcs/priority"): _circuit_field("pcs_priority"),
