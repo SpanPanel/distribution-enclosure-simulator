@@ -475,6 +475,28 @@ class Emitter:
             has_battery=has_battery,
         )
 
+        # Cross-device connection edges. Real SPAN owns the connection index on
+        # the panel-side device (the circuit or lugs that feeds a DER), never on
+        # the DER child: each DER's feed circuit publishes the feeds-* triple, and
+        # an upstream BESS's fed-by triple lands on the upstream lugs. Status is a
+        # link-health enum (OK/LOST/DEGRADED); PV/EVSE have no comms model so they
+        # report OK, a BESS reports its battery snapshot's communication health.
+        feeds_by_circuit: dict[str, tuple[str, str, str]] = {}
+        for pv_id, pv_phys in self._physics.all_pv().items():
+            if pv_phys.feed:
+                feeds_by_circuit[pv_phys.feed] = (pv_id, self._profiles["pv"].type, "OK")
+        for evse_id, evse_phys in self._physics.all_evse().items():
+            if evse_phys.feed:
+                feeds_by_circuit[evse_phys.feed] = (evse_id, self._profiles["evse"].type, "OK")
+        upstream_fed_by: tuple[str, str, str] | None = None
+        for bess_id, bess_phys in self._physics.all_bess().items():
+            bsnap = battery_snapshots.get(bess_id)
+            link = (bsnap.communication if bsnap else None) or "OK"
+            if bess_phys.relative_position == "UPSTREAM":
+                upstream_fed_by = (bess_id, self._profiles["bess"].type, link)
+            elif bess_phys.feed:
+                feeds_by_circuit[bess_phys.feed] = (bess_id, self._profiles["bess"].type, link)
+
         # Step 6: build per-circuit snapshots — applying any operator name and
         # priority overrides on top of manifest defaults.
         circuit_snaps: dict[str, EbusCircuitSnapshot] = {}
@@ -487,6 +509,7 @@ class Emitter:
                 cid,
                 self._manifest.get("circuit", cid).display_name,
             )
+            edge = feeds_by_circuit.get(cid)
             circuit_snaps[cid] = EbusCircuitSnapshot(
                 circuit_id=cid,
                 name=effective_name,
@@ -512,6 +535,9 @@ class Emitter:
                 relay_requester=str(requester),
                 energy_accum_update_time_s=int(tick.current_time),
                 instant_power_update_time_s=int(tick.current_time),
+                feeds_device_id=edge[0] if edge else None,
+                feeds_device_type=edge[1] if edge else None,
+                feeds_device_status=edge[2] if edge else None,
             )
 
         # Step 7: PV snapshots — one entry per PV instance in the manifest.
@@ -559,6 +585,7 @@ class Emitter:
                     for cid, s in circuit_snaps.items()
                     if circuits_phys[cid].placement == "downstream-of-lugs"
                 )
+            fed_by = upstream_fed_by if lphys.direction == "upstream" else None
             lugs_snaps[lugs_id] = EbusLugsSnapshot(
                 instance_id=lugs_id,
                 direction=("upstream" if lphys.direction == "upstream" else "downstream"),
@@ -568,6 +595,9 @@ class Emitter:
                 active_power_w=active_w,
                 imported_energy_wh=imported_wh,
                 exported_energy_wh=exported_wh,
+                fed_by_device_id=fed_by[0] if fed_by else None,
+                fed_by_device_type=fed_by[1] if fed_by else None,
+                fed_by_device_status=fed_by[2] if fed_by else None,
             )
 
         # Step 8: EVSE snapshots derived from per-tick power.
