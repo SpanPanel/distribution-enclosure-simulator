@@ -1,6 +1,6 @@
 # Contributing to distribution-enclosure-simulator
 
-Thanks for your interest in contributing! This project (`panel-sim`) is a producer-side [Homie 5](https://homieiot.github.io) publisher and a fully-loaded distribution-enclosure simulator for the [Electrification Bus (eBus)](https://ebus.energy) convention. It publishes a complete eBus Homie device tree (the enclosure plus a device for every circuit, lugs pair, and integrated DER: BESS, PV, EVSE, and MID) so consumers can build and test against a realistic SPAN-like panel without beta firmware or a live installation. It began as a fork of Bill Flood's [`electrification-bus/simulator`](https://github.com/electrification-bus/simulator) and now tracks the latest eBus specification.
+Thanks for your interest in contributing! This project (`panel-sim`) is a producer-side [Homie 5](https://homieiot.github.io) publisher and a fully-loaded distribution-enclosure simulator for the [Electrification Bus (eBus)](https://ebus.energy) convention. It publishes a complete eBus Homie device tree (the enclosure plus a device for every circuit, lugs pair, and integrated DER: BESS, PV, EVSE, and MID) so consumers can build and test against a realistic SPAN-like panel without beta firmware or a live installation. It began as a fork of Bill Flood's original simulator and now tracks the latest eBus specification.
 
 ## How to contribute
 
