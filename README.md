@@ -164,7 +164,7 @@ Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for how to fil
 
 ## Credits
 
-Created by **Bill Flood** ([@cayossarian](https://github.com/cayossarian)); since updated to track the latest eBus specification. See [AUTHORS](AUTHORS).
+A fork of, and building on, the original simulator created by **Bill Flood** ([@cayossarian](https://github.com/cayossarian)); since updated to track the latest eBus specification. See [AUTHORS](AUTHORS).
 
 ## License
 

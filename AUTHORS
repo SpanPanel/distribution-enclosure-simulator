@@ -1,5 +1,7 @@
 # Authors
 
-Bill Flood (@cayossarian): creator and principal developer.
+This project is a fork of, and builds on, the original simulator created by Bill Flood.
 
-Clark Communications Corporation (@dcj): updates to track the latest eBus specification.
+Bill Flood (@cayossarian): creator and principal developer of the original work.
+
+Clark Communications Corporation (@dcj): fork maintainer; updates to track the latest eBus specification.
