@@ -3,7 +3,7 @@ profile: mid.json
 profile_version: 1
 placement:
   kind: child-of-parent
-  parent_entity_class: panel
+  parent_entity_class: bess
   node_id_template: "{instance_id}"
 wire:
   device_id_source: self
