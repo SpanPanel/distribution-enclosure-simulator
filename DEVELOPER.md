@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- Python 3.14+ (`pyproject.toml` sets `requires-python = ">=3.14"`)
+- Python >= 3.11 (`pyproject.toml` sets `requires-python = ">=3.11"`); developed and CI-tested on 3.11 and 3.14
 - [uv](https://docs.astral.sh/uv/) (`brew install uv` on macOS)
 
 ## Setup

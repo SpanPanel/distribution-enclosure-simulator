@@ -1,5 +1,11 @@
 # panel-sim
 
+[![CI](https://github.com/electrification-bus/distribution-enclosure-simulator/actions/workflows/ci.yaml/badge.svg)](https://github.com/electrification-bus/distribution-enclosure-simulator/actions/workflows/ci.yaml)
+[![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![eBus spec](https://img.shields.io/badge/eBus%20spec-6e582c9-green)](https://github.com/electrification-bus/specification/tree/6e582c994fff4c77853a79d8bab26ef9924e22c7)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 A fully-loaded, spec-conformant **distribution-enclosure simulator** and producer-side Homie 5 publisher for the eBus convention. It publishes a complete eBus Homie device tree (the enclosure plus a device for every circuit, lugs pair, and integrated DER: BESS, PV, EVSE, and MID) so external developers can build and test their consumers against a realistic SPAN-like panel without beta firmware, a live panel, or the commissioned add-ons (SPAN Drive/EVSE, BESS, PV, MID) a real installation would have.
 
 It serves two roles:
@@ -151,6 +157,10 @@ uv run pytest
 uv run mypy --strict src/panel_sim tests
 uv run ruff check src tests
 ```
+
+## Contributing
+
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for how to file issues, start a [discussion](https://github.com/electrification-bus/distribution-enclosure-simulator/discussions), and open pull requests, plus the local quality gates (ruff, mypy `--strict`, pytest).
 
 ## Credits
 
