@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "panel-sim"
-version = "0.1.0"
+version = "0.2.0"
 description = "Producer-side Homie publisher with embedded behaviour runtime for the eBus convention"
 requires-python = ">=3.11"
 dependencies = [

@@ -1,6 +1,12 @@
 # Changelog
 
-## [0.2.0] — 2026-05-02
+## [0.2.0] - 2026-08-01
+
+### Fixed
+
+- **BREAKING (wire):** circuit `meter/imported-energy` and `meter/exported-energy` are now published in the enclosure reference frame, matching the already-enclosure-framed `meter/active-power` and real panel firmware. Previously a load circuit published a rising `imported-energy` while its `active-power` was negative, so integrating the published power grew the opposite accumulator (every load looked like it produced energy). Consumers that compensated for the old inverted behaviour must drop the workaround; consumers written against real panel firmware need no change. Lugs metering is unchanged (the frames coincide there). (#2, fixes #1)
+
+## [0.1.0] — 2026-05-02
 
 ### Added
 
