@@ -293,17 +293,17 @@ def _to_sdk_datatype(dt: str) -> ebus_sdk.PropertyDatatype:
 
 
 def _to_sdk_unit(unit: str | None) -> ebus_sdk.Unit | None:
+    """Map a Homie unit string to an ``ebus_sdk.Unit``.
+
+    ``Unit`` is a str-enum whose *value* is the Homie wire string (``Unit.VOLTS``
+    is ``"V"``, ``Unit.MINUTES`` is ``"min"``), so resolve by value: correct by
+    construction for every unit the SDK models, and it cannot silently drop a unit
+    the way the old hand-maintained name table did (which mapped "V" to a
+    non-existent "VOLT" member and had no entry for "min"). An unmodeled unit
+    resolves to None, omitting it from the wire."""
     if unit is None:
         return None
-    table = {
-        "W": "WATT",
-        "A": "AMPERE",
-        "V": "VOLT",
-        "kWh": "KILOWATT_HOUR",
-        "Wh": "WATT_HOUR",
-        "%": "PERCENT",
-        "kW": "KILOWATT",
-        "Hz": "HERTZ",
-    }
-    name = table.get(unit) or unit.upper().replace("-", "_")
-    return getattr(ebus_sdk.Unit, name, None)
+    try:
+        return ebus_sdk.Unit(unit)
+    except ValueError:
+        return None
