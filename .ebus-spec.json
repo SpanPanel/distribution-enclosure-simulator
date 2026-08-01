@@ -1,8 +1,8 @@
 {
   "$schema": "https://ebus.energy/schemas/ebus-spec.json",
   "spec_repo": "https://github.com/electrification-bus/specification",
-  "synced_commit": "16b00305cd4f5f49e448b4f9a7278e34939c0deb",
-  "synced_date": "2026-07-30",
+  "synced_commit": "6e582c994fff4c77853a79d8bab26ef9924e22c7",
+  "synced_date": "2026-08-01",
   "role": "publisher",
   "framework": "0.7",
   "implements": {
