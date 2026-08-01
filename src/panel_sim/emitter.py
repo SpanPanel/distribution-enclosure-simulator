@@ -43,6 +43,7 @@ from panel_sim.snapshot import (
     EbusPanelPcs,
     EbusPanelPowerFlows,
     EbusPanelShed,
+    EbusPanelShedForecast,
     EbusPanelSnapshot,
     EbusPanelStatus,
     EbusPvSnapshot,
@@ -684,6 +685,20 @@ class Emitter:
                 '"parameters": {"soc-threshold-shed": 20, "soc-threshold-release": 30}}'
             ),
         )
+        # Battery Time Remaining forecast: representative values matching real SPAN
+        # (lc3 nt-2026-c192x), published only when a BESS is present. Minutes for the
+        # four time fields; confidence is a LOW/MEDIUM/HIGH enum.
+        shed_forecast = (
+            EbusPanelShedForecast(
+                total_time_remaining=4320,
+                time_to_priority_shed=3037,
+                full_charge_total_time_remaining=4320,
+                full_charge_time_to_priority_shed=3038,
+                confidence="HIGH",
+            )
+            if has_battery
+            else EbusPanelShedForecast()
+        )
 
         return EbusPanelSnapshot(
             info=info,
@@ -693,6 +708,7 @@ class Emitter:
             pcs=pcs,
             power_flows=power_flows,
             shed=shed,
+            shed_forecast=shed_forecast,
             circuits=circuit_snaps,
             battery=battery_snapshots,
             pv=pv_snaps,
