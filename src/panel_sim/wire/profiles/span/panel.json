@@ -41,7 +41,35 @@
       "type": "energy.ebus.capability.shed",
       "properties": {
         "policy": {
-          "settable": false
+          "settable": false,
+          "format_json": {
+            "$id": "soc-priority.v1",
+            "type": "object",
+            "required": ["algorithm", "parameters"],
+            "additionalProperties": false,
+            "properties": {
+              "algorithm": { "const": "soc-priority.v1" },
+              "parameters": {
+                "type": "object",
+                "required": ["soc-threshold-shed", "soc-threshold-release"],
+                "additionalProperties": false,
+                "properties": {
+                  "soc-threshold-shed": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100,
+                    "description": "SoC percent below which SOC_THRESHOLD circuits shed"
+                  },
+                  "soc-threshold-release": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100,
+                    "description": "SoC percent above which shed SOC_THRESHOLD circuits restore"
+                  }
+                }
+              }
+            }
+          }
         }
       }
     }

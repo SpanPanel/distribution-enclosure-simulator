@@ -2,10 +2,25 @@
 
 from __future__ import annotations
 
+import json
+
 from panel_sim import DeviceInstance, DeviceManifest, Emitter, SetterRegistry, TickInputs
 from panel_sim.wire.profile_loader import load_profiles
 
 from .conftest import PahoRecorder
+
+# The exact minified soc-priority.v1 JSONSchema real SPAN (lc3 nt-2026-c192x)
+# publishes in the panel shed/policy $format.
+_SOC_PRIORITY_V1_FORMAT = (
+    '{"$id":"soc-priority.v1","type":"object","required":["algorithm","parameters"],'
+    '"additionalProperties":false,"properties":{"algorithm":{"const":"soc-priority.v1"},'
+    '"parameters":{"type":"object","required":["soc-threshold-shed","soc-threshold-release"],'
+    '"additionalProperties":false,"properties":'
+    '{"soc-threshold-shed":{"type":"integer","minimum":0,"maximum":100,'
+    '"description":"SoC percent below which SOC_THRESHOLD circuits shed"},'
+    '"soc-threshold-release":{"type":"integer","minimum":0,"maximum":100,'
+    '"description":"SoC percent above which shed SOC_THRESHOLD circuits restore"}}}}}'
+)
 
 
 def _manifest() -> DeviceManifest:
@@ -85,3 +100,20 @@ def test_reference_emitter_omits_the_span_surface(rec: PahoRecorder) -> None:
     assert not any(t.endswith("/info/name") for t in retained)
     # the spec-conformant metering still flows
     assert retained["ebus/5/kitchen/meter/active-power"] == "-500.0"
+
+
+def test_span_shed_policy_publishes_the_soc_priority_schema(rec: PahoRecorder) -> None:
+    """The span variant publishes shed/policy's soc-priority.v1 JSONSchema in
+    $format, byte-exact to real SPAN; the reference variant carries no SPAN
+    schema (its shed/policy is settable per the spec instead)."""
+    span_policy = load_profiles(variant="span")["panel"].capabilities["shed"].properties["policy"]
+    assert span_policy.format == _SOC_PRIORITY_V1_FORMAT
+    ref_policy = (
+        load_profiles(variant="reference")["panel"].capabilities["shed"].properties["policy"]
+    )
+    assert ref_policy.format is None
+
+    # end to end: the schema reaches the panel $description on the wire
+    Emitter(_manifest(), SetterRegistry()).start()
+    panel_desc = json.loads(rec.retained["ebus/5/abc-123/$description"])
+    assert panel_desc["nodes"]["shed"]["properties"]["policy"]["format"] == _SOC_PRIORITY_V1_FORMAT

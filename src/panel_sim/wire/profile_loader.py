@@ -162,6 +162,26 @@ def _hydrate_profile(
     )
 
 
+def _resolve_format(sel: dict[str, Any], catalog_def: dict[str, Any] | None) -> str | None:
+    """Resolve a property's Homie ``$format`` string.
+
+    A selection (or its catalog entry) may carry ``format`` as a ready wire
+    string (e.g. an enum's ``"A,B,C"``), or ``format_json`` as a JSON object
+    (e.g. the shed/policy JSONSchema) that is serialized to the minified Homie
+    form. The selection wins over the catalog; within either, ``format`` wins
+    over ``format_json``."""
+    for source in (sel, catalog_def):
+        if source is None:
+            continue
+        fmt = source.get("format")
+        if isinstance(fmt, str):
+            return fmt
+        fmt_json = source.get("format_json")
+        if fmt_json is not None:
+            return json.dumps(fmt_json, separators=(",", ":"))
+    return None
+
+
 def _hydrate_property(
     path: Path, cap_name: str, key: str, sel: dict[str, Any], catalog_def: dict[str, Any] | None
 ) -> ProfileProperty:
@@ -178,7 +198,7 @@ def _hydrate_property(
             name=sel["name"],
             datatype=sel["datatype"],
             unit=sel.get("unit"),
-            format=sel.get("format"),
+            format=_resolve_format(sel, None),
             settable=bool(sel.get("settable", False)),
         )
     if catalog_def is None:
@@ -190,6 +210,6 @@ def _hydrate_property(
         name=sel.get("name") or catalog_def.get("name") or key,
         datatype=catalog_def["datatype"],
         unit=sel.get("unit", catalog_def.get("unit")),
-        format=sel.get("format", catalog_def.get("format")),
+        format=_resolve_format(sel, catalog_def),
         settable=bool(sel.get("settable", catalog_def.get("settable", False))),
     )
