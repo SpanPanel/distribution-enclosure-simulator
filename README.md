@@ -23,15 +23,20 @@ For the internals (the per-tick pipeline, the native BESS/load-shed devices, `/s
 
 ## Install
 
-Not published to PyPI. Pin via git URL or local path:
+```bash
+pip install ebus-panel-sim    # or: uv add ebus-panel-sim
+```
+
+The import package is `ebus_panel_sim`. During local development, pin a path instead:
 
 ```toml
-ebus-panel-sim = { git = "https://github.com/electrification-bus/distribution-enclosure-simulator", rev = "<sha>" }
-# or, during local development:
 ebus-panel-sim = { path = "../distribution-enclosure-simulator", editable = true }
 ```
 
 It depends on `ebus-sdk`.
+
+> Before 0.3.0 this package was named `panel-sim`, importing as `panel_sim`, and was
+> installable only from git. Update both the dependency and your imports.
 
 ## Run
 
