@@ -2,7 +2,7 @@
 
 [![PyPI](https://img.shields.io/pypi/v/ebus-panel-sim)](https://pypi.org/project/ebus-panel-sim/)
 [![CI](https://github.com/electrification-bus/distribution-enclosure-simulator/actions/workflows/ci.yaml/badge.svg)](https://github.com/electrification-bus/distribution-enclosure-simulator/actions/workflows/ci.yaml)
-[![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
+[![Python versions](https://img.shields.io/pypi/pyversions/ebus-panel-sim.svg)](https://pypi.org/project/ebus-panel-sim/)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![eBus spec](https://img.shields.io/badge/eBus%20spec-6e582c9-green)](https://github.com/electrification-bus/specification/tree/6e582c994fff4c77853a79d8bab26ef9924e22c7)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
