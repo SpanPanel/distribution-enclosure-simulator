@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-08-07
+
+### Fixed
+
+- **`Emitter.stop(graceful=False)` now leaves the tree at `$state=lost`, as it always claimed to.** It documented itself as "leaving the LWT to fire `$state=lost`", which cannot happen: a Last Will fires only on an *unclean* disconnect, and `MqttClient.stop()` sends a clean DISCONNECT deliberately, so that an orderly shutdown is not reported to consumers as a crash. The will was therefore suppressed on every teardown, and an ungraceful stop published nothing at all: verified against a real broker, a consumer joining afterwards read the entire retained tree as `ready`, indefinitely. For a simulator this is the mode's whole purpose, since "act like a producer that died" is exactly what a consumer test needs, so the fix makes the behaviour real rather than deleting the promise. The root's `$state=lost` is now published retained before the connection drops, with topic and payload taken from the SDK's own `Device.will()` descriptor so it cannot drift from what a broker-delivered will would have carried. The difference from a real will is timing and delivery, not content: this lands immediately over the live connection, where a broker-delivered will waits on keepalive expiry, so a consumer exercising the *retained* view sees the same thing either way while one exercising live will delivery does not. `clear_retained` is documented as graceful-only, since a producer that died clears nothing.
+
+### Added
+
+- `tests/test_teardown.py`: both teardown modes now have tests, which neither had before. That absence is why a docstring could promise behaviour the code had never performed. Three of the five fail against 0.3.0.
+
 ## [0.3.0] - 2026-08-07
 
 First release published to PyPI, as **`ebus-panel-sim`**.
