@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import Any
 
 import ebus_sdk
-from ebus_sdk import PropertyDatatype, Unit
+from ebus_sdk import MqttClient, PropertyDatatype, Unit
 
 
 def make_property(
@@ -37,3 +37,25 @@ def make_property(
     if settable:
         spec["settable"] = True
     return node.add_property_from_dict(spec)
+
+
+def owned_client(mqttc: object) -> MqttClient | None:
+    """Return *mqttc* narrowed to the concrete client class the SDK builds.
+
+    ebus-sdk 0.18 narrowed the injected-transport contract: ``MqttDeviceTransport``
+    deliberately omits ``start`` / ``stop``, because those resolve only on the
+    concrete client the SDK constructs for an ``mqtt_cfg=`` root. The SDK makes the
+    same distinction internally (``Controller.stop`` stops via its owned handle,
+    "never via self.mqttc").
+
+    This is a *type* test, not an *ownership* test. The two coincide today only
+    because nothing here injects a transport, so the sole ``MqttClient`` in reach
+    is the one the SDK built. They come apart as soon as something does inject
+    one: a caller driving its own ``MqttClient`` on an event loop (the SDK's
+    ``asyncio_driver`` case) passes a value this returns, and stopping it would
+    tear down a connection the caller owns and may still be using.
+
+    A caller-owned transport therefore needs an explicit ownership flag at the
+    call site; this narrowing only makes the ``stop()`` call well-typed.
+    """
+    return mqttc if isinstance(mqttc, MqttClient) else None

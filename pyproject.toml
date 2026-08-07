@@ -56,13 +56,8 @@ testpaths = ["tests"]
 python_version = "3.11"
 strict = true
 
-# `ebus-sdk` ships without a `py.typed` marker; mypy cannot resolve its stubs.
-# ``ignore_missing_imports`` is the only legitimate ignore here: it surfaces the
-# upstream gap rather than masking emitter-side type errors.
-[[tool.mypy.overrides]]
-module = "ebus_sdk"
-ignore_missing_imports = true
-
-[[tool.mypy.overrides]]
-module = "ebus_sdk.*"
-ignore_missing_imports = true
+# No `ebus_sdk` override: the SDK has shipped a `py.typed` marker since 0.13.0, so
+# mypy resolves its real types. The `ignore_missing_imports` pair that used to sit
+# here is inert against the current pin, and its comment claimed the opposite of
+# the truth: that stale premise is what would justify annotating an SDK seam as
+# `Any` rather than reaching for the type the SDK actually publishes.
