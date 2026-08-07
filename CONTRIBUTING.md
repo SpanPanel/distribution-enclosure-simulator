@@ -56,7 +56,9 @@ Every commit is validated by pre-commit and by the [`ci.yaml`](.github/workflows
 
 ## Releases
 
-`ebus-panel-sim` is not published to PyPI. Consumers pin it via a git URL or a local path (see the README). A release-worthy change bumps `version` in `pyproject.toml` and adds a `CHANGELOG.md` entry.
+`ebus-panel-sim` is published to [PyPI](https://pypi.org/project/ebus-panel-sim/). Releases are tag-triggered: pushing a `v*` tag runs `.github/workflows/publish.yml`, which re-runs the gates against the tag, builds, uploads via PyPI trusted publishing (OIDC, no stored token), and mirrors the release to GitHub Releases using the tag's `CHANGELOG.md` section.
+
+A release-worthy change bumps `__version__` in `src/ebus_panel_sim/__init__.py`, the single source of truth, and adds a `CHANGELOG.md` entry under a matching `## [x.y.z]` heading. Do not restate the version in `pyproject.toml`; `[tool.hatch.version]` reads it. The publish workflow refuses to upload when the tag and `__version__` disagree, because a PyPI upload can never be replaced.
 
 ## Code of conduct
 
