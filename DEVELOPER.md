@@ -131,13 +131,12 @@ distribution-enclosure-simulator/
       bag_builder.py           # Snapshot -> PropertyBag translator
       property_bag.py          # Per-tick property values + diff cache
       publisher.py             # Per-tick diff/publish loop
-      lifecycle.py             # $state, $description, /set subscription, LWT
       set_router.py            # Setter registry and /set dispatch
-      wire_paths.py            # Homie topic-template helpers
-      _sdk_seam.py             # Internal seam over ebus_sdk.property
+      _sdk_seam.py             # Internal seam over ebus_sdk (property build, owned-client narrowing, will publish)
       profiles/                # Vendored Homie 5 device profiles (JSON), per device type
       mapping/                 # Vendored mapping descriptors (YAML), per device type
-  tests/                       # pytest suite (asyncio auto; in-process amqtt broker)
+      catalogs/                # Vendored spec capability catalogs (JSON); the wire type contract
+  tests/                       # pytest suite; paho is patched, so no broker and no socket
     conftest.py
     conventions/               # convention tests
     wire/                      # wire-layer tests
