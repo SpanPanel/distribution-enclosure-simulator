@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "panel-sim"
+name = "ebus-panel-sim"
 version = "0.2.0"
 description = "Producer-side Homie publisher with embedded behaviour runtime for the eBus convention"
 authors = [
@@ -31,12 +31,20 @@ Repository = "https://github.com/electrification-bus/distribution-enclosure-simu
 Issues = "https://github.com/electrification-bus/distribution-enclosure-simulator/issues"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/panel_sim"]
+# `packages` already carries everything under the package directory, including the
+# YAML/JSON wire data (profiles, mapping, catalogs). A `force-include` table naming
+# those same trees re-adds each file at a path the archive already holds, which
+# hatchling treats as fatal ("A second file is being added to the wheel archive at
+# the same path"), so the wheel could never build. Tests exercise the source tree
+# and so never caught it. If a data directory ever needs to live outside the
+# package, force-include is the right tool; re-adding what `packages` covers is not.
+packages = ["src/ebus_panel_sim"]
 
-[tool.hatch.build.targets.wheel.force-include]
-"src/panel_sim/wire/profiles" = "panel_sim/wire/profiles"
-"src/panel_sim/wire/mapping" = "panel_sim/wire/mapping"
-"src/panel_sim/wire/catalogs" = "panel_sim/wire/catalogs"
+# The sdist excludes the agent/issue-tracker symlinks into the shadow repo. They are
+# untracked, so a clean checkout has none, but a local build would otherwise fail on
+# their absolute link targets.
+[tool.hatch.build.targets.sdist]
+exclude = [".claude", ".beads", "CLAUDE.local.md", "AGENTS.md"]
 
 [tool.ruff]
 target-version = "py311"

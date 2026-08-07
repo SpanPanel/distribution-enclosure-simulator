@@ -1,4 +1,4 @@
-# panel-sim
+# ebus-panel-sim
 
 [![CI](https://github.com/electrification-bus/distribution-enclosure-simulator/actions/workflows/ci.yaml/badge.svg)](https://github.com/electrification-bus/distribution-enclosure-simulator/actions/workflows/ci.yaml)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
@@ -26,9 +26,9 @@ For the internals (the per-tick pipeline, the native BESS/load-shed devices, `/s
 Not published to PyPI. Pin via git URL or local path:
 
 ```toml
-panel-sim = { git = "https://github.com/electrification-bus/distribution-enclosure-simulator", rev = "<sha>" }
+ebus-panel-sim = { git = "https://github.com/electrification-bus/distribution-enclosure-simulator", rev = "<sha>" }
 # or, during local development:
-panel-sim = { path = "../distribution-enclosure-simulator", editable = true }
+ebus-panel-sim = { path = "../distribution-enclosure-simulator", editable = true }
 ```
 
 It depends on `ebus-sdk`.
@@ -88,7 +88,7 @@ A producer can build `DeviceInstance`s directly instead of using the YAML loader
 ```python
 import time
 
-from panel_sim import (
+from ebus_panel_sim import (
     BESSConfig, DeviceInstance, DeviceManifest, Emitter,
     LoadSheddingConfig, SetterRegistry, TickInputs,
 )
@@ -146,7 +146,7 @@ Read the most recently published state back through `emitter.last_snapshot`. `mq
 
 ## Layout
 
-- `src/panel_sim/` — the package (`emitter.py`, `manifest.py`, `wire/` profiles + publishing, `native_devices/`); see [DESIGN.md](DESIGN.md).
+- `src/ebus_panel_sim/` — the package (`emitter.py`, `manifest.py`, `wire/` profiles + publishing, `native_devices/`); see [DESIGN.md](DESIGN.md).
 - `examples/` — the runnable example and its YAML definition.
 - `tests/` — the pytest suite.
 
@@ -154,7 +154,7 @@ Read the most recently published state back through `emitter.last_snapshot`. `mq
 
 ```bash
 uv run pytest
-uv run mypy --strict src/panel_sim tests
+uv run mypy --strict src/ebus_panel_sim tests
 uv run ruff check src tests
 ```
 

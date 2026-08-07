@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import json
 
-from panel_sim import DeviceInstance, DeviceManifest, Emitter, SetterRegistry, TickInputs
-from panel_sim.wire.profile_loader import load_profiles
+from ebus_panel_sim import DeviceInstance, DeviceManifest, Emitter, SetterRegistry, TickInputs
+from ebus_panel_sim.wire.profile_loader import load_profiles
 
 from .conftest import PahoRecorder
 

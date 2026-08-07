@@ -22,10 +22,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from panel_sim.conventions.tab_legs import Leg
+from ebus_panel_sim.conventions.tab_legs import Leg
 
 if TYPE_CHECKING:
-    from panel_sim.manifest_physics import CircuitPhysics, PanelPhysics
+    from ebus_panel_sim.manifest_physics import CircuitPhysics, PanelPhysics
 
 
 # ---------------------------------------------------------------------------

@@ -12,7 +12,7 @@ repos:
   # Typing the ebus-sdk seam correctly depends on resolving the SDK's real types
   # (it has shipped `py.typed` since 0.13.0), so this hook now runs exactly what
   # CI runs, against exactly the pinned SDK. It also checks `src`, not just
-  # `src/panel_sim`, matching CI.
+  # `src/ebus_panel_sim`, matching CI.
   - repo: local
     hooks:
       - id: mypy

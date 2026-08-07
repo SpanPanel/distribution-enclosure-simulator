@@ -1,6 +1,6 @@
 import pytest
 
-from panel_sim.manifest import DeviceInstance, DeviceManifest
+from ebus_panel_sim.manifest import DeviceInstance, DeviceManifest
 
 
 def _instance(

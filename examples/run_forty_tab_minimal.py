@@ -27,7 +27,7 @@ from typing import Literal, cast
 import yaml
 from ebus_sdk import Controller
 
-from panel_sim import (
+from ebus_panel_sim import (
     BESSConfig,
     DeviceInstance,
     DeviceManifest,

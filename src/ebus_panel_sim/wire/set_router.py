@@ -19,7 +19,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Callable
 
-from panel_sim.exceptions import MissingSetterError
+from ebus_panel_sim.exceptions import MissingSetterError
 
 _LOG = logging.getLogger(__name__)
 
