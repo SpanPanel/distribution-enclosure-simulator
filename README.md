@@ -1,5 +1,6 @@
 # ebus-panel-sim
 
+[![PyPI](https://img.shields.io/pypi/v/ebus-panel-sim)](https://pypi.org/project/ebus-panel-sim/)
 [![CI](https://github.com/electrification-bus/distribution-enclosure-simulator/actions/workflows/ci.yaml/badge.svg)](https://github.com/electrification-bus/distribution-enclosure-simulator/actions/workflows/ci.yaml)
 [![Python](https://img.shields.io/badge/python-3.11%2B-blue.svg)](https://www.python.org/)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
@@ -13,7 +14,7 @@ It serves two roles:
 - **Simulator / test fixture.** Drive it from a small YAML definition and it publishes a spec-conformant, fully-commissioned enclosure to any MQTT broker. Consumers (Home Assistant integrations, dashboards, SDK code) validate against it before shipping to the field.
 - **Producer library.** The canonical eBus Homie publisher. A producer (a simulator, a real panel gateway, an LLM-driven model) hands the emitter a small per-tick driving signal (signed power per circuit, current time, grid-online flag) via `TickInputs`; the emitter derives all telemetry and publishes Homie-conformant retained MQTT with diff-only updates. The split is **identity = manifest (once at startup), telemetry = derived from TickInputs (per tick)**.
 
-For the internals (the per-tick pipeline, the native BESS/load-shed devices, `/set` handling, the wire model) see [DESIGN.md](DESIGN.md); for the dev setup see [DEVELOPER.md](DEVELOPER.md).
+For the internals (the per-tick pipeline, the native BESS/load-shed devices, `/set` handling, the wire model) see [DESIGN.md](https://github.com/electrification-bus/distribution-enclosure-simulator/blob/main/DESIGN.md); for the dev setup see [DEVELOPER.md](https://github.com/electrification-bus/distribution-enclosure-simulator/blob/main/DEVELOPER.md).
 
 ## Requirements
 
@@ -151,7 +152,7 @@ Read the most recently published state back through `emitter.last_snapshot`. `mq
 
 ## Layout
 
-- `src/ebus_panel_sim/` — the package (`emitter.py`, `manifest.py`, `wire/` profiles + publishing, `native_devices/`); see [DESIGN.md](DESIGN.md).
+- `src/ebus_panel_sim/` — the package (`emitter.py`, `manifest.py`, `wire/` profiles + publishing, `native_devices/`); see [DESIGN.md](https://github.com/electrification-bus/distribution-enclosure-simulator/blob/main/DESIGN.md).
 - `examples/` — the runnable example and its YAML definition.
 - `tests/` — the pytest suite.
 
@@ -165,12 +166,12 @@ uv run ruff check src tests
 
 ## Contributing
 
-Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for how to file issues, start a [discussion](https://github.com/electrification-bus/distribution-enclosure-simulator/discussions), and open pull requests, plus the local quality gates (ruff, mypy `--strict`, pytest).
+Contributions are welcome. See [CONTRIBUTING.md](https://github.com/electrification-bus/distribution-enclosure-simulator/blob/main/CONTRIBUTING.md) for how to file issues, start a [discussion](https://github.com/electrification-bus/distribution-enclosure-simulator/discussions), and open pull requests, plus the local quality gates (ruff, mypy `--strict`, pytest).
 
 ## Credits
 
-A fork of, and building on, the original simulator created by **Bill Flood** ([@cayossarian](https://github.com/cayossarian)); since updated to track the latest eBus specification. See [AUTHORS](AUTHORS).
+A fork of, and building on, the original simulator created by **Bill Flood** ([@cayossarian](https://github.com/cayossarian)); since updated to track the latest eBus specification. See [AUTHORS](https://github.com/electrification-bus/distribution-enclosure-simulator/blob/main/AUTHORS).
 
 ## License
 
-See [LICENSE](LICENSE).
+See [LICENSE](https://github.com/electrification-bus/distribution-enclosure-simulator/blob/main/LICENSE).

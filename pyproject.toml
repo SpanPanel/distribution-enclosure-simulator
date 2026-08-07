@@ -1,5 +1,10 @@
 [build-system]
-requires = ["hatchling"]
+# PEP 639 floor: `license = "MIT"` as an SPDX expression plus `license-files` needs
+# hatchling >= 1.27. Below it the build SUCCEEDS and quietly emits the legacy
+# metadata instead (measured on 1.26.3: `License: MIT`, no `License-Expression`,
+# no `License-File`), so an unpinned backend would degrade the published metadata
+# without failing anything.
+requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [project]
@@ -9,11 +14,32 @@ name = "ebus-panel-sim"
 # git tag disagrees. Matches the convention across the eBus family.
 dynamic = ["version"]
 description = "Producer-side Homie publisher with embedded behaviour runtime for the eBus convention"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [
     {name = "Bill Flood"},
     {name = "Clark Communications Corporation"},
 ]
 keywords = ["homie", "homie5", "mqtt", "iot", "ebus", "simulator", "span", "distribution-enclosure", "energy"]
+# `requires-python` is what pip enforces; these are what PyPI indexes and what the
+# README's Python badge reads. Kept in step with the floor above, not with the CI
+# matrix, which tests the ends of the range (3.11 and 3.14) rather than every point
+# in it.
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Home Automation",
+    "Topic :: System :: Emulators",
+    # The package ships py.typed; this is how PyPI surfaces that, on the page and
+    # in the "Typed" search filter.
+    "Typing :: Typed",
+]
 requires-python = ">=3.11"
 dependencies = [
     "ebus-sdk>=0.19,<0.20",
