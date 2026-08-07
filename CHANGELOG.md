@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-08-07
+
+Metadata-only. No source changes, so the published tree and the public API are identical to 0.3.1; this release exists to get the packaging metadata below onto PyPI, where it only takes effect on a publish.
+
+### Fixed
+
+- **The PyPI project page was blank.** `pyproject.toml` declared no `readme`, so the published metadata carried no description at all: the page showed the summary line and nothing else. It now carries the README (`description_content_type: text/markdown`). The README's repo-relative links (`DESIGN.md`, `DEVELOPER.md`, `CONTRIBUTING.md`, `LICENSE`, `AUTHORS`) are absolutised, since those resolve on GitHub but 404 when the same Markdown is rendered on PyPI.
+- **No licence was declared.** The README badge claimed MIT and a `LICENSE` file was present, but nothing said so in the metadata. Now `license = "MIT"` (an SPDX expression) with `license-files = ["LICENSE"]`, so the wheel carries `License-Expression: MIT` and `License-File: LICENSE`. No `License :: OSI Approved` classifier is paired with it, per PEP 639.
+- **No classifiers.** PyPI indexed nothing about the package. Now covers 3.11 through 3.14, audience, topic, and `Typing :: Typed` — the last being how PyPI surfaces the `py.typed` marker shipped in 0.3.0, on the page and in the "Typed" search filter.
+- The `hatchling` build requirement is floored at `>=1.27`, the version that supports PEP 639. Below it the build **succeeds** and quietly emits legacy metadata instead (measured on 1.26.3: `License: MIT`, no `License-Expression`, no `License-File`), so an unpinned backend would have degraded the published artifact without failing anything. ([#15](https://github.com/electrification-bus/distribution-enclosure-simulator/pull/15))
+
+### Changed
+
+- The README's Python badge is now the dynamic `pypi/pyversions` one used across the eBus family, replacing a hardcoded `3.11+`. It reads classifiers from the published release, so it could not be adopted until this release carried them.
+
 ## [0.3.1] - 2026-08-07
 
 ### Fixed
