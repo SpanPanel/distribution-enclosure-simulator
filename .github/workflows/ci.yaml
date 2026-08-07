@@ -3,8 +3,13 @@ name: CI
 on:
   push:
     branches: [main]
+  # Deliberately unfiltered by base branch. A `branches:` filter here means a PR
+  # targeting anything other than `main` gets no checks at all, silently: the PR
+  # simply reports "no checks reported" and reads as unvalidated rather than
+  # failing. That hides every stacked PR, which is exactly when a second pair of
+  # eyes is worth most. Every other repo in the eBus family already runs
+  # unfiltered; this one was the outlier.
   pull_request:
-    branches: [main]
 
 jobs:
   lint-and-test:
