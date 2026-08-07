@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import Any
 
 import ebus_sdk
-from ebus_sdk import MqttClient, PropertyDatatype, Unit
+from ebus_sdk import EBUS_HOMIE_MQTT_QOS, MqttClient, PropertyDatatype, Unit
 
 
 def make_property(
@@ -53,3 +53,36 @@ def owned_client(mqttc: object) -> MqttClient | None:
     its owner to stop, which is the behaviour the SDK's contract asks for.
     """
     return mqttc if isinstance(mqttc, MqttClient) else None
+
+
+def publish_will_now(root: ebus_sdk.Device) -> bool:
+    """Publish the root's will payload (``$state=lost``) as a retained message, now.
+
+    A Last Will fires only when the broker sees an UNCLEAN disconnect. Every
+    orderly teardown path here sends a clean DISCONNECT, and ebus-mqtt-client does
+    that deliberately (``MqttClient.stop`` -> ``mqttc.disconnect()``), precisely so
+    a normal shutdown is not reported to consumers as a crash. The consequence is
+    that a simulator asked to *act* like a producer that died cannot get there by
+    letting the will fire: it has to publish the will's own payload itself.
+
+    Topic and payload come from ``Device.will()``, the same descriptor the SDK
+    registers as the LWT, so this cannot drift from what a real will would have
+    delivered.
+
+    QoS deliberately follows the rest of the tree's ``$state`` publishes rather
+    than the ``qos=0`` default the will registration uses: a registered will is
+    delivered by the broker from its own state, whereas this goes out over a live
+    connection that is about to close and has to actually land first.
+
+    Returns True when the broker acknowledged it, False if there is no owned
+    client or the publish did not flush in time.
+    """
+    client = owned_client(root.mqttc)
+    if client is None:
+        return False
+    will = root.will()
+    return bool(
+        client.publish_and_flush(
+            will["topic"], will["payload"], qos=EBUS_HOMIE_MQTT_QOS, retain=True
+        )
+    )

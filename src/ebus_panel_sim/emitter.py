@@ -49,7 +49,7 @@ from ebus_panel_sim.snapshot import (
     EbusPvSnapshot,
 )
 from ebus_panel_sim.tick_inputs import TickInputs
-from ebus_panel_sim.wire._sdk_seam import owned_client
+from ebus_panel_sim.wire._sdk_seam import owned_client, publish_will_now
 from ebus_panel_sim.wire.bag_builder import BagBuilder
 from ebus_panel_sim.wire.graph_builder import build_graph
 from ebus_panel_sim.wire.mapping_loader import load_mapping_table
@@ -253,11 +253,27 @@ class Emitter:
         Graceful (default): publish the root's ``$state=disconnected`` then stop
         the shared client (ebus-sdk's bounded teardown; per Homie's
         effective-state rule the root going disconnected covers every child).
-        Non-graceful: stop the client without the disconnected publish, leaving
-        the LWT to fire ``$state=lost``. ``clear_retained`` additionally clears
-        every device's retained values + ``$description`` before disconnecting,
-        for a clean-slate re-run."""
+
+        Non-graceful: leave the tree looking like a producer that died, by
+        publishing the root's ``$state=lost`` retained before dropping the
+        connection. This is what a consumer test wants from a simulator, and it
+        is emphatically NOT what a bare disconnect gives you: the Last Will fires
+        only on an *unclean* disconnect, and every teardown here closes cleanly,
+        so relying on the will would leave the whole retained tree claiming
+        ``ready`` forever. See ``publish_will_now``, which sources the topic and
+        payload from ``Device.will()`` so this cannot drift from the real thing.
+
+        The difference from a real will is timing and delivery, not content: this
+        lands immediately over the live connection, where a broker-delivered will
+        waits on keepalive expiry. A consumer exercising the *retained* view sees
+        the same thing either way; one exercising live will delivery does not.
+
+        ``clear_retained`` additionally clears every device's retained values +
+        ``$description`` before disconnecting, for a clean-slate re-run. It
+        applies to the graceful path only, since a producer that died clears
+        nothing."""
         if not graceful:
+            publish_will_now(self._root)
             client = owned_client(self._root.mqttc)
             if client is not None:
                 client.stop()
