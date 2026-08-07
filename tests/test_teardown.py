@@ -71,3 +71,25 @@ def test_ungraceful_stop_publishes_lost_retained(rec: PahoRecorder) -> None:
     lost = [(t, d, q, r) for (t, d, q, r) in rec.published if t == ROOT_STATE and d == "lost"]
     assert lost, "no $state=lost publish reached the transport"
     assert all(retain for (_t, _d, _q, retain) in lost)
+
+
+def test_ungraceful_stop_moves_the_device_state_not_just_the_wire(rec: PahoRecorder) -> None:
+    """Publishing `lost` while the Device object still holds `ready` leaves the two
+    disagreeing, and anything that re-announces from the object undoes the publish.
+    `Device.stop()` sets `_state` for `disconnected`; this must match."""
+    emitter = _started()
+    emitter.stop(graceful=False)
+    assert rec.retained[ROOT_STATE] == "lost"
+    assert emitter._root.state().value == "lost"
+
+
+def test_a_later_refresh_tree_re_announces_lost_not_ready(rec: PahoRecorder) -> None:
+    """`refresh_tree()` republishes from the Device's own state, and the SDK asks a
+    bring-your-own-transport caller to wire it onto their client's on-connect
+    handler. If the ungraceful stop left `_state` on `ready`, that hook would
+    resurrect `ready` over the `lost` and restore the very stale-tree bug 0.3.1
+    removed."""
+    emitter = _started()
+    emitter.stop(graceful=False)
+    emitter._root.refresh_tree()
+    assert rec.retained[ROOT_STATE] == "lost"
