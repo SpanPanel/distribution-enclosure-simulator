@@ -39,6 +39,20 @@ Pull requests are welcome.
 - **Keep comments to a minimum.** The project style is self-explanatory code, with comments reserved for the non-obvious *why* (a spec quirk, a Homie nuance, a SPAN-variant deviation). Don't add comments that just restate the code.
 - One commit per logical change is fine; we don't require squash or any particular branch naming.
 
+## What "done" means
+
+This package is published to PyPI, and a PyPI upload can never be replaced. So an increment that lands behaviour and leaves its documentation for later is not a smaller version of the change: it is a release whose docs contradict its code, and the correction costs another release. Ship the whole thing.
+
+A change is done when, in the same PR:
+
+- **Prose it invalidates is fixed.** If a change makes a sentence in the README, `DESIGN.md`, `DEVELOPER.md`, or a docstring untrue, that sentence is part of the change. A new option whose README still describes the old single path is not finished.
+- **Types its signatures name are reachable.** A public parameter annotated with a type a caller cannot import from `ebus_panel_sim` forces them to depend on `ebus_sdk` directly, which is what the SDK seam exists to spare them.
+- **It carries its `CHANGELOG.md` entry**, under `[Unreleased]` or a version heading.
+- **New behaviour has a test that fails without it.** Say so in the PR, and say which. A test that passes against the previous commit is not evidence.
+- **Caller obligations are written down where the caller will look.** If correct use requires the caller to do something (wire a callback, set something before connecting, let an event loop turn), a `#` comment in our source does not reach them.
+
+Splitting a change is fine when the parts are genuinely independent, or when a decision is needed that only a maintainer can make. It is not fine as a way to defer the half that needs no decision. If you are unsure which you have, open the PR with the whole thing and let the review split it.
+
 ## Local development
 
 Python >= 3.11 (developed and CI-tested on 3.11 and 3.14), managed with [uv](https://docs.astral.sh/uv/). See [DEVELOPER.md](DEVELOPER.md) for the full guide.
