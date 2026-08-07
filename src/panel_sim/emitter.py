@@ -74,12 +74,24 @@ class Emitter:
         setter_registry: SetterRegistry,
         *,
         mqtt_cfg: dict[str, Any] | None = None,
+        mqttc: Any | None = None,
         bess_configs: tuple[BESSConfig, ...] = (),
         load_shedding_config: LoadSheddingConfig | None = None,
         variant: Variant = "span",
     ) -> None:
         self._manifest = manifest
-        self._mqtt_cfg = dict(mqtt_cfg) if mqtt_cfg is not None else dict(_DEFAULT_MQTT_CFG)
+        # Bring-your-own-transport: a caller that already owns a connected client
+        # passes it as ``mqttc`` and the SDK publishes through it, never starting
+        # or stopping it. Mutually exclusive with ``mqtt_cfg``, which has the SDK
+        # build a client it owns.
+        if mqttc is not None and mqtt_cfg is not None:
+            raise EmitterStateError("Emitter takes mqtt_cfg= or mqttc=, not both")
+        self._mqttc = mqttc
+        self._owns_client = mqttc is None
+        if mqttc is not None:
+            self._mqtt_cfg = None
+        else:
+            self._mqtt_cfg = dict(mqtt_cfg) if mqtt_cfg is not None else dict(_DEFAULT_MQTT_CFG)
 
         # variant="span" (default) publishes the SPAN-faithful surface (status
         # diagnostics, read-only shed/policy, the legacy evse config); "reference"
@@ -90,7 +102,9 @@ class Emitter:
 
         # The root device owns the shared MQTT connection built from mqtt_cfg;
         # children share it. Construction opens no socket (deferred to start()).
-        self._graph = build_graph(manifest, self._mapping, self._profiles, mqtt_cfg=self._mqtt_cfg)
+        self._graph = build_graph(
+            manifest, self._mapping, self._profiles, mqtt_cfg=self._mqtt_cfg, mqttc=self._mqttc
+        )
         self._root = self._graph.devices[self._graph.root_id]
 
         # ---- native-device + physics state (must exist before internal /set
@@ -196,6 +210,13 @@ class Emitter:
         -> refresh_tree). We start the root's shared client and wait, bounded,
         for the link so the first ``publish_tick`` lands live; publishing before
         connect is still safe (values are retained and republished on connect)."""
+        if not self._owns_client:
+            # The caller owns the connection and its timing. Blocking here would
+            # stall the very loop an injected client is likely being driven on,
+            # and the SDK never starts a client it did not build, so there is
+            # nothing to wait for. Values are retained and republished on connect.
+            self._started = True
+            return
         self._root.start_mqtt_client()
         deadline = time.monotonic() + connect_timeout_s
         while not self._root.is_connected() and time.monotonic() < deadline:
@@ -258,7 +279,13 @@ class Emitter:
         every device's retained values + ``$description`` before disconnecting,
         for a clean-slate re-run."""
         if not graceful:
-            client = owned_client(self._root.mqttc)
+            # Only ever stop a client this emitter had built for it. Stopping an
+            # injected one would tear down a connection the caller owns and may
+            # be using for other things. Ownership is what decides, not the type:
+            # an injected client can itself be an ``MqttClient`` (a caller driving
+            # one on its own event loop via ``asyncio_driver``), so the narrowing
+            # below only makes the ``stop()`` call well-typed.
+            client = owned_client(self._root.mqttc) if self._owns_client else None
             if client is not None:
                 client.stop()
             return
