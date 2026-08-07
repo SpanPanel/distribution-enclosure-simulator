@@ -63,6 +63,12 @@ from ebus_panel_sim.snapshot import (
     EbusPvSnapshot,
 )
 from ebus_panel_sim.tick_inputs import PanelEnvelopeTick, TickInputs
+
+# `Emitter(mqttc=...)` is public API typed with this, so the name has to be
+# nameable from here. Without it a downstream annotating what it passes must
+# import from `ebus_sdk` directly, which is exactly the coupling the wire seam
+# exists to spare it.
+from ebus_panel_sim.wire._sdk_seam import MqttDeviceTransport
 from ebus_panel_sim.wire.set_router import SetterHandler, SetterRegistry
 
 # Single source of truth for the distribution version: pyproject reads it from here
@@ -101,6 +107,7 @@ __all__ = [
     "ManifestPhysicsView",
     "ManifestValidationError",
     "MissingSetterError",
+    "MqttDeviceTransport",
     "NativeDevice",
     "NativeTickContext",
     "PanelEnvelopeTick",

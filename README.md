@@ -122,10 +122,11 @@ def main() -> None:
     bess_cfg = BESSConfig(instance_id="abc-123-bess", nameplate_capacity_kwh=13.5,
                           max_charge_w=3500.0, max_discharge_w=3500.0)
 
-    # The emitter owns the MQTT connection: ebus-sdk builds the client from
-    # mqtt_cfg and sets the enclosure's LWT. Empty SetterRegistry -> the emitter
-    # installs internal default /set handlers; register your own before
-    # construction to override them.
+    # With mqtt_cfg the emitter owns the MQTT connection: ebus-sdk builds the
+    # client and sets the enclosure's LWT. (Injecting your own client instead
+    # moves both of those to you — see "Bring your own transport" below.)
+    # Empty SetterRegistry -> the emitter installs internal default /set
+    # handlers; register your own before construction to override them.
     emitter = Emitter(
         manifest, SetterRegistry(),
         mqtt_cfg={"host": "127.0.0.1", "port": 1883},
@@ -149,6 +150,53 @@ main()
 ```
 
 Read the most recently published state back through `emitter.last_snapshot`. `mqtt_cfg` is handed straight to ebus-sdk: beyond `host`/`port` it takes the ebus-mqtt-client TLS and authentication keys for secured brokers (e.g. broker-quickstart's mTLS `discovery`/`strict` profiles).
+
+### Bring your own transport
+
+A host that already owns an MQTT connection can publish through it instead of having a second one opened underneath: pass `Emitter(..., mqttc=client)` in place of `mqtt_cfg=`. The two are mutually exclusive. This mirrors ebus-sdk's own `Device(mqttc=...)`, and the case it exists for is a host like a Home Assistant add-on, whose MQTT integration is `single_config_entry` and which forbids background threads (`ebus-mqtt-client` 0.4.0's `asyncio_driver()` pumps paho's loop on yours).
+
+**The emitter never starts or stops a client it did not build.** Two things it consequently cannot do for you — register the Last Will, and re-announce the tree on reconnect — are automatic on the `mqtt_cfg` path and yours here. They are steps 1 and 4 below, and the order is forced rather than stylistic:
+
+```python
+from ebus_panel_sim import Emitter, SetterRegistry
+from ebus_mqtt_client import MqttClient
+
+# 1. The Last Will must exist before the client connects — it rides the CONNECT
+#    packet, so it cannot be attached afterwards. This is why it is a
+#    staticmethod: there is no Emitter yet, and cannot be.
+lwt = Emitter.lwt_settings(manifest)
+
+# 2. Build your client with it, still unconnected.
+client = MqttClient.from_config({"host": "127.0.0.1", "port": 1883}, client_id="my-host", lwt=lwt)
+
+# 3. Now the emitter, publishing through it.
+emitter = Emitter(manifest, SetterRegistry(), mqttc=client)
+
+# 4. Re-announce the whole tree on every (re)connect. Assigned after construction
+#    rather than passed to from_config, because the callback needs the emitter and
+#    the emitter needs the client. Invoked with no arguments.
+client.on_connect_callback = emitter.republish_tree
+
+# 5. You connect, not the emitter — it never starts a client it did not build.
+client.start()
+emitter.start()           # returns immediately; it has no connection to wait for
+```
+
+To pump paho on your own event loop instead of its background thread — the case a
+Home Assistant add-on needs — replace step 5's `client.start()` with the driver,
+which is `async` and mutually exclusive with `start()`:
+
+```python
+driver = client.asyncio_driver()   # must be called from inside a running loop
+await driver.start()
+emitter.start()
+```
+
+What each buys, and one obligation that is about timing rather than wiring. All three are silent when they bite:
+
+- **No will means no liveness signal.** Skip step 1 and the tree has no LWT at all: a host that dies leaves every consumer reading a stale retained `ready`, indefinitely. `stop(graceful=False)` publishes `$state=lost` itself, but that only covers an orderly teardown — the case where the process *didn't* die.
+- **No re-announce means the tree does not come back.** Skip step 4 and a broker that loses its retained store never sees the tree again; what returns is whatever later ticks happen to republish. Measured after wiping a real broker's retained store: 5 topics of 56, every `$description` missing.
+- **Let your loop turn before you close the client.** `stop(graceful=False)` *queues* the `lost` on your loop rather than flushing it — flushing would block the very thread that has to run `loop_write`. Closing the client in the same synchronous breath drops the message and leaves the retained tree on `ready`.
 
 ## Layout
 
