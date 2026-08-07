@@ -11,14 +11,14 @@ from __future__ import annotations
 
 import json
 
-from panel_sim import (
+from ebus_panel_sim import (
     BESSConfig,
     DeviceInstance,
     DeviceManifest,
     Emitter,
     SetterRegistry,
 )
-from panel_sim.wire.graph_builder import _to_sdk_unit
+from ebus_panel_sim.wire.graph_builder import _to_sdk_unit
 
 from .conftest import PahoRecorder
 

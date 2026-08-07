@@ -6,7 +6,7 @@ a BESS is commissioned (matching real SPAN, lc3 nt-2026-c192x)."""
 
 from __future__ import annotations
 
-from panel_sim import (
+from ebus_panel_sim import (
     BESSConfig,
     DeviceInstance,
     DeviceManifest,

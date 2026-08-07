@@ -1,4 +1,4 @@
-from panel_sim.exceptions import (
+from ebus_panel_sim.exceptions import (
     EmitterError,
     EmitterStateError,
     ManifestValidationError,

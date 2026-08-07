@@ -1,4 +1,4 @@
-# panel-sim design
+# ebus-panel-sim design
 
 Internals of the emitter. For what it is and how to run/configure it, see [README.md](README.md).
 
@@ -23,7 +23,7 @@ Placement is declarative. Each `wire/mapping/*.yaml` descriptor says whether its
 
 Two device classes are not pure publishers: their behaviour runs inside the emitter.
 
-### BESS (`panel_sim.native_devices.bess`)
+### BESS (`ebus_panel_sim.native_devices.bess`)
 
 Owns the dispatch decision, SOC/SOE accumulation, mode behaviour (self-consumption / backup-only), and the backup-reserve floor. (The `charge_hours` / `discharge_hours` config fields exist but are inert: the dispatch logic never reads them, and hour-of-day / TOU windows are explicitly not modelled.) Instantiated when `Emitter` is constructed with `bess_configs`, a tuple of `BESSConfig` (default empty). One `BESSDevice` is created per config, keyed by `BESSConfig.instance_id`; duplicate instance IDs raise `EmitterStateError`.
 
@@ -33,7 +33,7 @@ Per-tick outputs (into `snapshot.battery`): `soe_percentage`, `soe_kwh`, and `ac
 
 Mid-run config changes: `emitter.update_bess_config(new_config)` swaps the `BESSConfig` reference while SOC/SOE state persists (the path for dashboard edits to mode and max charge/discharge rates; the charge/discharge hour-window fields are carried but not yet applied by the dispatch logic). Persistence across restart: call `emitter.seed_bess_soe(instance_id, soe_kwh)` between `__init__` and `start()`, or declare `initial-soe-kwh` in the manifest. Subclassing `BESSDevice` is supported for vendor-variant behaviour without a plugin framework.
 
-### Load shedding (`panel_sim.native_devices.load_shedding`)
+### Load shedding (`ebus_panel_sim.native_devices.load_shedding`)
 
 When the grid is offline the policy returns the circuit instance-ids whose priority is `OFF_GRID`, plus those with `SOC_THRESHOLD` priority once the live SOC falls below `soc_threshold_pct`. The emitter writes that decision into the `RelayResolver` shed map; final relay state is then resolved by the precedence rules below. Mid-run config: `emitter.update_load_shedding_config(new_config)`.
 
@@ -67,7 +67,7 @@ Relay changes reach the wire on the next `publish_tick`, bounded by the producer
 
 ## Tab-to-leg convention
 
-`legs_for_tabs((tab, ...)) -> tuple[Leg, ...]` in `panel_sim.conventions.tab_legs` is the single source of truth for the US residential split-phase convention: odd-numbered tabs land on L1, even-numbered on L2, and a 240 V circuit occupies tabs on both legs. It is isolated so non-US / 3-phase support can land there later without touching `PanelMeter` or the per-leg current calculations.
+`legs_for_tabs((tab, ...)) -> tuple[Leg, ...]` in `ebus_panel_sim.conventions.tab_legs` is the single source of truth for the US residential split-phase convention: odd-numbered tabs land on L1, even-numbered on L2, and a 240 V circuit occupies tabs on both legs. It is isolated so non-US / 3-phase support can land there later without touching `PanelMeter` or the per-leg current calculations.
 
 ## Snapshot read-back
 

@@ -7,10 +7,10 @@ from __future__ import annotations
 
 import pytest
 
-from panel_sim.exceptions import ProfileValidationError
-from panel_sim.manifest import DeviceInstance, DeviceManifest
-from panel_sim.wire.graph_builder import build_graph
-from panel_sim.wire.mapping_loader import (
+from ebus_panel_sim.exceptions import ProfileValidationError
+from ebus_panel_sim.manifest import DeviceInstance, DeviceManifest
+from ebus_panel_sim.wire.graph_builder import build_graph
+from ebus_panel_sim.wire.mapping_loader import (
     DiscoveryConfig,
     DisplayConfig,
     MappingDescriptor,
@@ -18,7 +18,7 @@ from panel_sim.wire.mapping_loader import (
     Placement,
     WireConfig,
 )
-from panel_sim.wire.profile_loader import (
+from ebus_panel_sim.wire.profile_loader import (
     Profile,
     ProfileCapability,
     ProfileProperty,

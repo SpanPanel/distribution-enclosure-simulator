@@ -9,14 +9,14 @@ from __future__ import annotations
 
 import json
 
-from panel_sim import (
+from ebus_panel_sim import (
     BESSConfig,
     DeviceInstance,
     DeviceManifest,
     Emitter,
     SetterRegistry,
 )
-from panel_sim.wire.mapping_loader import load_mapping_table
+from ebus_panel_sim.wire.mapping_loader import load_mapping_table
 
 from .conftest import PahoRecorder
 

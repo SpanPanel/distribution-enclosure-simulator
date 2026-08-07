@@ -1,6 +1,6 @@
 # Contributing to distribution-enclosure-simulator
 
-Thanks for your interest in contributing! This project (`panel-sim`) is a producer-side [Homie 5](https://homieiot.github.io) publisher and a fully-loaded distribution-enclosure simulator for the [Electrification Bus (eBus)](https://ebus.energy) convention. It publishes a complete eBus Homie device tree (the enclosure plus a device for every circuit, lugs pair, and integrated DER: BESS, PV, EVSE, and MID) so consumers can build and test against a realistic SPAN-like panel without beta firmware or a live installation. It began as a fork of Bill Flood's original simulator and now tracks the latest eBus specification.
+Thanks for your interest in contributing! This project (`ebus-panel-sim`) is a producer-side [Homie 5](https://homieiot.github.io) publisher and a fully-loaded distribution-enclosure simulator for the [Electrification Bus (eBus)](https://ebus.energy) convention. It publishes a complete eBus Homie device tree (the enclosure plus a device for every circuit, lugs pair, and integrated DER: BESS, PV, EVSE, and MID) so consumers can build and test against a realistic SPAN-like panel without beta firmware or a live installation. It began as a fork of Bill Flood's original simulator and now tracks the latest eBus specification.
 
 ## How to contribute
 
@@ -49,14 +49,14 @@ uv run pre-commit install                 # install the pre-commit hooks
 uv run pytest                             # tests
 uv run ruff check --fix src/ tests/       # lint
 uv run ruff format src/ tests/            # format
-uv run mypy --strict src/panel_sim/       # type check (strict)
+uv run mypy --strict src/ebus_panel_sim/       # type check (strict)
 ```
 
 Every commit is validated by pre-commit and by the [`ci.yaml`](.github/workflows/ci.yaml) workflow (ruff, ruff-format, mypy `--strict`, pytest). Run the gates locally before pushing; new behaviour needs a test, and bug fixes need a regression test.
 
 ## Releases
 
-`panel-sim` is not published to PyPI. Consumers pin it via a git URL or a local path (see the README). A release-worthy change bumps `version` in `pyproject.toml` and adds a `CHANGELOG.md` entry.
+`ebus-panel-sim` is not published to PyPI. Consumers pin it via a git URL or a local path (see the README). A release-worthy change bumps `version` in `pyproject.toml` and adds a `CHANGELOG.md` entry.
 
 ## Code of conduct
 

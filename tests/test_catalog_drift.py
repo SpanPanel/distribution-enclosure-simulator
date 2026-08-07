@@ -1,10 +1,10 @@
 """Guard the vendored spec capability catalogs against silent drift.
 
-``src/panel_sim/wire/catalogs/*.json`` are byte copies of the eBus specification's
+``src/ebus_panel_sim/wire/catalogs/*.json`` are byte copies of the eBus specification's
 ``capabilities/*.json``, vendored so the wire datatypes are single-sourced from the
 spec (see ``wire/profile_loader.py``). Two things must stay honest:
 
-1. ``.ebus-spec.json`` pins a version for each capability panel-sim implements; that
+1. ``.ebus-spec.json`` pins a version for each capability ebus-panel-sim implements; that
    pin must match the ``version`` in the vendored catalog it was copied from. This is
    self-contained and always runs.
 2. The vendored copies must still match the spec source. This can only run when the
@@ -19,7 +19,7 @@ from pathlib import Path
 import pytest
 
 _ROOT = Path(__file__).resolve().parents[1]
-_CATALOG_DIR = _ROOT / "src" / "panel_sim" / "wire" / "catalogs"
+_CATALOG_DIR = _ROOT / "src" / "ebus_panel_sim" / "wire" / "catalogs"
 _LOCKFILE = _ROOT / ".ebus-spec.json"
 _SPEC_CAPABILITIES = _ROOT.parent / "specification" / "capabilities"
 

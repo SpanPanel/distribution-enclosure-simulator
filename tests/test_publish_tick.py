@@ -10,7 +10,7 @@ import json
 
 import pytest
 
-from panel_sim import (
+from ebus_panel_sim import (
     BESSConfig,
     DeviceInstance,
     DeviceManifest,

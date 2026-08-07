@@ -36,7 +36,7 @@ uv run ruff check --fix src tests
 uv run ruff format src tests
 
 # Type check (strict; matches the pre-commit hook)
-uv run mypy --strict src/panel_sim tests
+uv run mypy --strict src/ebus_panel_sim tests
 
 # Add a new dependency
 uv add <package>          # runtime
@@ -53,7 +53,7 @@ Every commit is validated by:
 |---|---|
 | **ruff** | Lint rules (E, F, W, I, UP, B, SIM, TCH, RUF) with auto-fix |
 | **ruff-format** | Consistent formatting |
-| **mypy --strict** | Full strict type checking across `src/panel_sim` and `tests` |
+| **mypy --strict** | Full strict type checking across `src/ebus_panel_sim` and `tests` |
 | **trailing-whitespace** | No trailing whitespace |
 | **end-of-file-fixer** | Files end with a newline |
 | **check-yaml** | Valid YAML syntax |
@@ -107,7 +107,7 @@ distribution-enclosure-simulator/
   examples/
     forty_tab_minimal.yaml     # Example device manifest
     run_forty_tab_minimal.py   # Minimal standalone producer + emitter demo
-  src/panel_sim/
+  src/ebus_panel_sim/
     __init__.py                # Public surface
     emitter.py                 # Public Emitter facade (wire publisher + native runtime)
     tick_inputs.py             # TickInputs: the producer/emitter per-tick contract

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import ebus_sdk
 
-from panel_sim.wire._sdk_seam import make_property
+from ebus_panel_sim.wire._sdk_seam import make_property
 
 
 def _prop() -> ebus_sdk.Property:

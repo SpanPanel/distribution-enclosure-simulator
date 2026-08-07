@@ -1,7 +1,7 @@
-from panel_sim.manifest import DeviceInstance, DeviceManifest
-from panel_sim.wire.graph_builder import BuiltGraph, build_graph
-from panel_sim.wire.mapping_loader import load_mapping_table
-from panel_sim.wire.profile_loader import load_profiles
+from ebus_panel_sim.manifest import DeviceInstance, DeviceManifest
+from ebus_panel_sim.wire.graph_builder import BuiltGraph, build_graph
+from ebus_panel_sim.wire.mapping_loader import load_mapping_table
+from ebus_panel_sim.wire.profile_loader import load_profiles
 
 
 def _manifest_panel_with_one_circuit() -> DeviceManifest:

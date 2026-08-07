@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
 
-from panel_sim.exceptions import ProfileValidationError
+from ebus_panel_sim.exceptions import ProfileValidationError
 
 _DEFAULT_DIR = Path(__file__).parent / "profiles"
 _CATALOG_DIR = Path(__file__).parent / "catalogs"

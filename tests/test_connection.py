@@ -6,7 +6,7 @@ upstream BESS's fed-by triple lands on the upstream lugs."""
 
 from __future__ import annotations
 
-from panel_sim import (
+from ebus_panel_sim import (
     BESSConfig,
     DeviceInstance,
     DeviceManifest,

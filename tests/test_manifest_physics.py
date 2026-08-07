@@ -1,9 +1,9 @@
 import pytest
 
-from panel_sim.conventions.tab_legs import Leg
-from panel_sim.exceptions import ManifestValidationError
-from panel_sim.manifest import DeviceInstance, DeviceManifest
-from panel_sim.manifest_physics import ManifestPhysicsView
+from ebus_panel_sim.conventions.tab_legs import Leg
+from ebus_panel_sim.exceptions import ManifestValidationError
+from ebus_panel_sim.manifest import DeviceInstance, DeviceManifest
+from ebus_panel_sim.manifest_physics import ManifestPhysicsView
 
 
 def _panel(**md: str) -> DeviceInstance:

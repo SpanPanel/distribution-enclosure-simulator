@@ -15,11 +15,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
-from panel_sim.conventions.tab_legs import Leg, legs_for_tabs
-from panel_sim.exceptions import ManifestValidationError
+from ebus_panel_sim.conventions.tab_legs import Leg, legs_for_tabs
+from ebus_panel_sim.exceptions import ManifestValidationError
 
 if TYPE_CHECKING:
-    from panel_sim.manifest import DeviceInstance, DeviceManifest
+    from ebus_panel_sim.manifest import DeviceInstance, DeviceManifest
 
 
 # ---------------------------------------------------------------------------

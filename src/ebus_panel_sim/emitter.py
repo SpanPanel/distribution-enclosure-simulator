@@ -17,21 +17,21 @@ import logging
 import time
 from typing import Any
 
-from panel_sim.energy_integrator import EnergyIntegrator
-from panel_sim.exceptions import EmitterStateError
-from panel_sim.manifest import DeviceManifest
-from panel_sim.manifest_physics import ManifestPhysicsView
-from panel_sim.native_devices import (
+from ebus_panel_sim.energy_integrator import EnergyIntegrator
+from ebus_panel_sim.exceptions import EmitterStateError
+from ebus_panel_sim.manifest import DeviceManifest
+from ebus_panel_sim.manifest_physics import ManifestPhysicsView
+from ebus_panel_sim.native_devices import (
     BESSConfig,
     BESSDevice,
     LoadSheddingConfig,
     LoadSheddingDevice,
     NativeTickContext,
 )
-from panel_sim.panel_meter import circuit_current_a
-from panel_sim.panel_meter import resolve as resolve_panel
-from panel_sim.relay_resolver import RelayResolver, RelayState
-from panel_sim.snapshot import (
+from ebus_panel_sim.panel_meter import circuit_current_a
+from ebus_panel_sim.panel_meter import resolve as resolve_panel
+from ebus_panel_sim.relay_resolver import RelayResolver, RelayState
+from ebus_panel_sim.snapshot import (
     EbusBatterySnapshot,
     EbusCircuitSnapshot,
     EbusEvseSnapshot,
@@ -48,14 +48,14 @@ from panel_sim.snapshot import (
     EbusPanelStatus,
     EbusPvSnapshot,
 )
-from panel_sim.tick_inputs import TickInputs
-from panel_sim.wire._sdk_seam import owned_client
-from panel_sim.wire.bag_builder import BagBuilder
-from panel_sim.wire.graph_builder import build_graph
-from panel_sim.wire.mapping_loader import load_mapping_table
-from panel_sim.wire.profile_loader import Variant, load_profiles
-from panel_sim.wire.publisher import Publisher
-from panel_sim.wire.set_router import (
+from ebus_panel_sim.tick_inputs import TickInputs
+from ebus_panel_sim.wire._sdk_seam import owned_client
+from ebus_panel_sim.wire.bag_builder import BagBuilder
+from ebus_panel_sim.wire.graph_builder import build_graph
+from ebus_panel_sim.wire.mapping_loader import load_mapping_table
+from ebus_panel_sim.wire.profile_loader import Variant, load_profiles
+from ebus_panel_sim.wire.publisher import Publisher
+from ebus_panel_sim.wire.set_router import (
     SetterRegistry,
     check_setter_coverage,
     make_set_callback,

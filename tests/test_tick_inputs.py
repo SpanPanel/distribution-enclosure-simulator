@@ -1,4 +1,4 @@
-from panel_sim.tick_inputs import PanelEnvelopeTick, TickInputs
+from ebus_panel_sim.tick_inputs import PanelEnvelopeTick, TickInputs
 
 
 def test_tick_inputs_defaults() -> None:

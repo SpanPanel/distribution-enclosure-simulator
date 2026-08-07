@@ -2,9 +2,9 @@ from pathlib import Path
 
 import pytest
 
-from panel_sim.exceptions import ProfileValidationError
-from panel_sim.wire.mapping_loader import MappingTable, load_mapping_table
-from panel_sim.wire.profile_loader import ProfileTable, load_profiles
+from ebus_panel_sim.exceptions import ProfileValidationError
+from ebus_panel_sim.wire.mapping_loader import MappingTable, load_mapping_table
+from ebus_panel_sim.wire.profile_loader import ProfileTable, load_profiles
 
 
 def test_load_profiles_returns_all_vendored() -> None:
