@@ -1,5 +1,10 @@
 [build-system]
-requires = ["hatchling"]
+# PEP 639 floor: `license = "MIT"` as an SPDX expression plus `license-files` needs
+# hatchling >= 1.27. Below it the build SUCCEEDS and quietly emits the legacy
+# metadata instead (measured on 1.26.3: `License: MIT`, no `License-Expression`,
+# no `License-File`), so an unpinned backend would degrade the published metadata
+# without failing anything.
+requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [project]
@@ -31,6 +36,9 @@ classifiers = [
     "Programming Language :: Python :: 3.14",
     "Topic :: Home Automation",
     "Topic :: System :: Emulators",
+    # The package ships py.typed; this is how PyPI surfaces that, on the page and
+    # in the "Typed" search filter.
+    "Typing :: Typed",
 ]
 requires-python = ">=3.11"
 dependencies = [
