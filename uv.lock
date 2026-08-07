@@ -17,26 +17,26 @@ wheels = [
 
 [[package]]
 name = "ebus-mqtt-client"
-version = "0.1.8"
+version = "0.4.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "paho-mqtt" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/16/3b/8c80258871abe09f90e3a11218485294ebed0fe88f80546d07fd58c62158/ebus_mqtt_client-0.1.8.tar.gz", hash = "sha256:282347fbdca2b2baa395a03b677eb78bb320a9a17dadd1b0d73862b8da736833", size = 17238, upload-time = "2026-07-20T18:08:32.099Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/b9/05/43c255aac2fe76e51642080315897306751fee1d4414fc6a099a1a5d9af5/ebus_mqtt_client-0.4.0.tar.gz", hash = "sha256:83ac9cfe4672fbbc1622d46ad7fe53d345654ca0dd85109c0894cb9fea8c73b1", size = 27690, upload-time = "2026-08-03T19:58:51.972Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/af/42/f8e4565adf3e13f52690172bd6e8f925a8adfbbea12c4b9eb9d1004061bf/ebus_mqtt_client-0.1.8-py3-none-any.whl", hash = "sha256:7a2876a148e7c31be13fc7dc4a0f819f7ee51949bf2588c6996a5e00889a105e", size = 10538, upload-time = "2026-07-20T18:08:30.851Z" },
+    { url = "https://files.pythonhosted.org/packages/fd/f3/e5549b9d340c958bf9ee8927b23ce724b7296a76b395ff0f5cbe55be1f77/ebus_mqtt_client-0.4.0-py3-none-any.whl", hash = "sha256:d64d6ac7f39f42791a59c932ce1cebefadb35accf88b1b3367258fa5fb7f54ff", size = 16625, upload-time = "2026-08-03T19:58:50.606Z" },
 ]
 
 [[package]]
 name = "ebus-sdk"
-version = "0.12.0"
+version = "0.18.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "ebus-mqtt-client" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/a8/cd/d23855a630ee80ccae8947db58228da7be37ba95796f03ab3390e8474887/ebus_sdk-0.12.0.tar.gz", hash = "sha256:8e115c02689346fd593e51e45e53d7bca5c3dc51987a5326e92e7b8f22d2b741", size = 116837, upload-time = "2026-07-20T19:00:27.266Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/79/ca/7709e30078ffa1efb9cb6c6fe30ac11fe36c58a4f5b1f4c8b10dee6386a1/ebus_sdk-0.18.0.tar.gz", hash = "sha256:14c08a5fe3d9338045aeb89eb889364760f215db7ddad94140cecd569b51dc44", size = 145076, upload-time = "2026-08-05T22:41:34.305Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/81/5c/ee705f172a89e1bf2fa20cb9c7a51d19e925c3661d9f60408d6fa14430da/ebus_sdk-0.12.0-py3-none-any.whl", hash = "sha256:e5fc0af2f7a61cb74cda46d427ece6ee0cb962d3718d21ab9ff4c84d7507536a", size = 78676, upload-time = "2026-07-20T19:00:25.713Z" },
+    { url = "https://files.pythonhosted.org/packages/97/a9/4c01ee7efadbac8bdbfe8b2db553ef12fc4264a360092fe58b5777f1260b/ebus_sdk-0.18.0-py3-none-any.whl", hash = "sha256:7aec63a2023d295ba6a256e6dba6da915a03c02facdd1d67c597bacaa15e6673", size = 92178, upload-time = "2026-08-05T22:41:32.957Z" },
 ]
 
 [[package]]
@@ -217,7 +217,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "ebus-sdk", specifier = ">=0.12,<0.13" },
+    { name = "ebus-sdk", specifier = ">=0.18,<0.19" },
     { name = "pyyaml", specifier = ">=6.0" },
 ]
 
