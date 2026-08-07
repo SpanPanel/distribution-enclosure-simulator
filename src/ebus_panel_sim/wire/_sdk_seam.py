@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import Any
 
 import ebus_sdk
-from ebus_sdk import EBUS_HOMIE_MQTT_QOS, MqttClient, PropertyDatatype, Unit
+from ebus_sdk import EBUS_HOMIE_MQTT_QOS, DeviceState, MqttClient, PropertyDatatype, Unit
 
 
 def make_property(
@@ -74,12 +74,26 @@ def publish_will_now(root: ebus_sdk.Device) -> bool:
     delivered by the broker from its own state, whereas this goes out over a live
     connection that is about to close and has to actually land first.
 
+    ``set_state`` moves the root's own state to ``LOST`` first, mirroring what
+    ``Device.stop()`` does for ``DISCONNECTED``. Publishing a state the device
+    object does not itself hold leaves the two disagreeing, and anything that later
+    re-announces from that object (``refresh_tree()``, which the SDK asks a
+    bring-your-own-transport caller to wire onto their client's on-connect handler)
+    republishes ``ready`` straight over the ``lost`` we just sent.
+
+    That call also publishes ``$state``, so the flushed publish below is the same
+    retained value a second time. The duplicate is deliberate and costs one message
+    at teardown: ``set_state`` goes through the ordinary unflushed path, and on the
+    owned path the connection closes immediately behind this function, so only a
+    flushed publish is actually guaranteed to land.
+
     Returns True when the broker acknowledged it, False if there is no owned
     client or the publish did not flush in time.
     """
     client = owned_client(root.mqttc)
     if client is None:
         return False
+    root.set_state(DeviceState.LOST)
     will = root.will()
     return bool(
         client.publish_and_flush(

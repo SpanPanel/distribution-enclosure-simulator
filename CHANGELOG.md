@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-08-07
+
+### Fixed
+
+- **`stop(graceful=False)` published `$state=lost` but left the root Device still holding `ready`.** The wire and the object disagreed, so anything re-announcing from that object republished `ready` straight over the `lost`. It now goes through the SDK's public `Device.set_state(DeviceState.LOST)` first, mirroring what `Device.stop()` already does for `disconnected`. The flushed publish that follows is deliberately the same retained value a second time: `set_state` uses the ordinary unflushed path, and on the owned path the connection closes immediately behind the call, so only a flushed publish is guaranteed to land. Costs one message at teardown. The observable retained outcome is unchanged (confirmed against a real broker: `p1=lost`); what changes is that it now survives a subsequent re-announce. Two tests pin it, both failing against 0.3.2. Found by [@cayossarian](https://github.com/cayossarian) while building on this code in [#17](https://github.com/electrification-bus/distribution-enclosure-simulator/pull/17).
+
 ## [0.3.2] - 2026-08-07
 
 Metadata-only. No source changes, so the published tree and the public API are identical to 0.3.1; this release exists to get the packaging metadata below onto PyPI, where it only takes effect on a publish.
