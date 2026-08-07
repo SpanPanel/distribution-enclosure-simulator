@@ -13,7 +13,7 @@ authors = [
 keywords = ["homie", "homie5", "mqtt", "iot", "ebus", "simulator", "span", "distribution-enclosure", "energy"]
 requires-python = ">=3.11"
 dependencies = [
-    "ebus-sdk>=0.18,<0.19",
+    "ebus-sdk>=0.19,<0.20",
     "pyyaml>=6.0",
 ]
 
@@ -56,12 +56,6 @@ testpaths = ["tests"]
 python_version = "3.11"
 strict = true
 
-# `ebus-sdk` ships without a `py.typed` marker; mypy cannot resolve its stubs.
-# ``ignore_missing_imports`` is the only legitimate ignore here: it surfaces the
-# upstream gap rather than masking emitter-side type errors.
-[[tool.mypy.overrides]]
-module = "ebus_sdk"
-ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "ebus_sdk.*"
