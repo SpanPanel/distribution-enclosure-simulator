@@ -81,13 +81,13 @@ A producer can build `DeviceInstance`s directly instead of using the YAML loader
 
 | entity_class | required keys | optional keys |
 | --- | --- | --- |
-| `panel` | `vendor-name`, `serial-number`, `firmware-version` (or `software-version`), `hardware-version`, `panel-size`, `main-breaker-rating-a`, `panel-model`, `postal-code`, `time-zone` | `service-voltage-v` (240), `line-voltage-v` (120), `islandable` (false) |
+| `panel` | `vendor-name`, `serial-number`, `firmware-version` (or `software-version`), `hardware-version`, `panel-size`, `main-breaker-rating-a`, `panel-model`, `postal-code`, `time-zone` | `service-voltage-v` (240), `line-voltage-v` (120), `islandable` (false), `schema-topology` (`flat` \| `parent-child`) |
 | `lugs` | `direction` (`upstream` \| `downstream`) | |
-| `circuit` | `tab-numbers` (CSV ints), `breaker-rating-a`, `default-priority`, `relay-behavior`, `placement` (`upstream-of-lugs` \| `downstream-of-lugs`) | `always-on`, `pcs-priority` (0), `initial-consumed-wh` (0), `initial-produced-wh` (0) |
-| `bess` | `vendor-name`, `nameplate-capacity-kwh` | `product-name`, `model`, `serial-number`, `firmware-version`/`software-version`, `relative-position` (`UPSTREAM`), `feed`, `initial-soe-kwh` |
-| `pv` | `vendor-name`, `nameplate-capacity-w`, `inverter-type` (`hybrid` \| `ac-coupled`) | `product-name`, `serial-number`, `firmware-version`/`software-version`, `relative-position` (`IN_PANEL`), `feed` |
-| `evse` | `vendor-name`, `product-name`, `part-number`, `serial-number`, `firmware-version` (or `software-version`), `max-current-a` | `feed` |
-| `mid` | (none) | `vendor-name`, `serial-number`, `product-name`, `model`, `firmware-version`/`software-version`, `hardware-version` |
+| `circuit` | `tab-numbers` (CSV ints), `breaker-rating-a`, `default-priority`, `relay-behavior`, `placement` (`upstream-of-lugs` \| `downstream-of-lugs`) | `always-on`, `dipole` (defaults to `len(tab-numbers) > 1`), `pcs-priority` (0), `initial-consumed-wh` (0), `initial-produced-wh` (0) |
+| `bess` | `vendor-name`, `nameplate-capacity-kwh` | `model`, `part-number`, `serial-number`, `firmware-version`/`software-version`, `relative-position` (`UPSTREAM`), `feed`, `initial-soe-kwh` |
+| `pv` | `vendor-name`, `nominal-power-w`, `inverter-type` (`hybrid` \| `ac-coupled`) | `model`, `serial-number`, `firmware-version`/`software-version`, `relative-position` (`IN_PANEL`), `feed` |
+| `evse` | `vendor-name`, `model`, `part-number`, `serial-number`, `firmware-version` (or `software-version`), `max-current-a` | `feed` |
+| `mid` | (none) | `vendor-name`, `serial-number`, `model`, `firmware-version`/`software-version`, `hardware-version` |
 
 ## Usage (as a producer library)
 

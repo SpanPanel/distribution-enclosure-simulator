@@ -12,6 +12,7 @@ physics (e.g. ``dipole`` flag inconsistent with ``tab-numbers`` count) raise
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
@@ -389,6 +390,28 @@ def _parse_circuit(inst: DeviceInstance) -> CircuitPhysics:
     )
 
 
+def _feed(md: dict[str, str]) -> str | None:
+    """Read the ``feed`` metadata key, honouring the deprecated ``feed-circuit-id``.
+
+    ``feed-circuit-id`` was the original name and is still accepted so existing
+    manifests keep working, but it is deliberately absent from the README's
+    metadata table: documenting it would entrench two names for one concept.
+
+    The warning fires whenever the alias is *present*, not only when it is the
+    one that resolves. A producer part-way through migrating passes both for a
+    release, and staying quiet then is exactly when they would never learn the
+    old key had become dead weight.
+    """
+    legacy = _opt_str(md, "feed-circuit-id")
+    if legacy is not None:
+        warnings.warn(
+            "metadata key 'feed-circuit-id' is deprecated; use 'feed' instead",
+            DeprecationWarning,
+            stacklevel=3,
+        )
+    return _opt_str(md, "feed") or legacy
+
+
 def _parse_bess(inst: DeviceInstance) -> BessPhysics:
     md = inst.metadata
     initial_soe: float | None = None
@@ -403,7 +426,7 @@ def _parse_bess(inst: DeviceInstance) -> BessPhysics:
         serial_number=_opt_str(md, "serial-number"),
         firmware_version=_opt_str(md, "firmware-version") or _opt_str(md, "software-version"),
         relative_position=_opt_str(md, "relative-position") or "UPSTREAM",
-        feed=_opt_str(md, "feed") or _opt_str(md, "feed-circuit-id"),
+        feed=_feed(md),
     )
 
 
@@ -423,7 +446,7 @@ def _parse_pv(inst: DeviceInstance) -> PvPhysics:
         serial_number=_opt_str(md, "serial-number"),
         firmware_version=_opt_str(md, "firmware-version") or _opt_str(md, "software-version"),
         relative_position=_opt_str(md, "relative-position") or "IN_PANEL",
-        feed=_opt_str(md, "feed") or _opt_str(md, "feed-circuit-id"),
+        feed=_feed(md),
     )
 
 
@@ -436,7 +459,7 @@ def _parse_evse(inst: DeviceInstance) -> EvsePhysics:
         serial_number=_require(md, "serial-number"),
         firmware_version=_opt_str(md, "firmware-version") or _require(md, "software-version"),
         max_current_a=_req_float(md, "max-current-a"),
-        feed=_opt_str(md, "feed") or _opt_str(md, "feed-circuit-id"),
+        feed=_feed(md),
     )
 
 
