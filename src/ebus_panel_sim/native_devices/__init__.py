@@ -10,13 +10,20 @@ schema lands. The list is intentionally small — circuits stay 100% producer-dr
 even when the producer's view of them is HVAC-shaped or recorder-replayed.
 """
 
-from ebus_panel_sim.native_devices.bess import BESSConfig, BESSDevice
+from ebus_panel_sim.native_devices.bess import (
+    BESSConfig,
+    BESSDevice,
+    ChargeMode,
+    DispatchState,
+)
 from ebus_panel_sim.native_devices.load_shedding import LoadSheddingConfig, LoadSheddingDevice
 from ebus_panel_sim.native_devices.protocol import NativeDevice, NativeTickContext
 
 __all__ = [
     "BESSConfig",
     "BESSDevice",
+    "ChargeMode",
+    "DispatchState",
     "LoadSheddingConfig",
     "LoadSheddingDevice",
     "NativeDevice",
