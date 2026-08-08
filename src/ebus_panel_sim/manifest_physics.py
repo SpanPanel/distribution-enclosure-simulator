@@ -12,6 +12,7 @@ physics (e.g. ``dipole`` flag inconsistent with ``tab-numbers`` count) raise
 
 from __future__ import annotations
 
+import warnings
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Literal
 
@@ -138,6 +139,37 @@ _VALID_INVERTER_TYPES = frozenset({"hybrid", "ac-coupled"})
 _VALID_TOPOLOGIES = frozenset({"flat", "parent-child"})
 
 
+_DEPRECATED_KEYS = {"feed-circuit-id": "feed"}
+
+
+def _warn_deprecated_keys(manifest: DeviceManifest) -> None:
+    """Raise one ``DeprecationWarning`` per manifest naming the instances at fault.
+
+    Deliberately not raised from the leaf that reads the key. Python's default
+    filter only *shows* a ``DeprecationWarning`` attributed to ``__main__``, so
+    where the warning appears to come from decides whether the producer ever
+    sees it at all. Warning from ``_feed`` attributes it to this module, which
+    both blames the wrong file and hides it outside a test runner: a deprecation
+    nobody can see is worse than none, because it lets us believe we gave notice.
+
+    Raising it here, once, from the public constructor puts the blame on the
+    caller's own line. ``stacklevel=3`` walks this frame and ``__init__``'s. A
+    producer who goes through ``Emitter`` instead lands on the emitter's
+    construction of this view rather than their own line, which is the one case
+    this cannot fix from a single site: there is no stack depth that is correct
+    for both entry points.
+    """
+    for key, replacement in _DEPRECATED_KEYS.items():
+        culprits = sorted({i.instance_id for i in manifest.instances if key in i.metadata})
+        if culprits:
+            warnings.warn(
+                f"metadata key {key!r} is deprecated; use {replacement!r} instead "
+                f"(on {', '.join(culprits)})",
+                DeprecationWarning,
+                stacklevel=3,
+            )
+
+
 class ManifestPhysicsView:
     """Validated, typed view over a ``DeviceManifest``'s metadata.
 
@@ -147,6 +179,7 @@ class ManifestPhysicsView:
     values; the emitter never sees a partially-validated manifest."""
 
     def __init__(self, manifest: DeviceManifest) -> None:
+        _warn_deprecated_keys(manifest)
         self._panel: PanelPhysics | None = None
         self._lugs: dict[str, LugsPhysics] = {}
         self._circuits: dict[str, CircuitPhysics] = {}
@@ -389,6 +422,19 @@ def _parse_circuit(inst: DeviceInstance) -> CircuitPhysics:
     )
 
 
+def _feed(md: dict[str, str]) -> str | None:
+    """Read the ``feed`` metadata key, honouring the deprecated ``feed-circuit-id``.
+
+    ``feed-circuit-id`` was the original name and is still accepted so existing
+    manifests keep working, but it is deliberately absent from the README's
+    metadata table: documenting it would entrench two names for one concept.
+
+    Resolution only. The `DeprecationWarning` is raised once per manifest by
+    `_warn_deprecated_keys`, not here; see that function for why.
+    """
+    return _opt_str(md, "feed") or _opt_str(md, "feed-circuit-id")
+
+
 def _parse_bess(inst: DeviceInstance) -> BessPhysics:
     md = inst.metadata
     initial_soe: float | None = None
@@ -403,7 +449,7 @@ def _parse_bess(inst: DeviceInstance) -> BessPhysics:
         serial_number=_opt_str(md, "serial-number"),
         firmware_version=_opt_str(md, "firmware-version") or _opt_str(md, "software-version"),
         relative_position=_opt_str(md, "relative-position") or "UPSTREAM",
-        feed=_opt_str(md, "feed") or _opt_str(md, "feed-circuit-id"),
+        feed=_feed(md),
     )
 
 
@@ -423,7 +469,7 @@ def _parse_pv(inst: DeviceInstance) -> PvPhysics:
         serial_number=_opt_str(md, "serial-number"),
         firmware_version=_opt_str(md, "firmware-version") or _opt_str(md, "software-version"),
         relative_position=_opt_str(md, "relative-position") or "IN_PANEL",
-        feed=_opt_str(md, "feed") or _opt_str(md, "feed-circuit-id"),
+        feed=_feed(md),
     )
 
 
@@ -436,7 +482,7 @@ def _parse_evse(inst: DeviceInstance) -> EvsePhysics:
         serial_number=_require(md, "serial-number"),
         firmware_version=_opt_str(md, "firmware-version") or _require(md, "software-version"),
         max_current_a=_req_float(md, "max-current-a"),
-        feed=_opt_str(md, "feed") or _opt_str(md, "feed-circuit-id"),
+        feed=_feed(md),
     )
 
 
