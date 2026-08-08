@@ -1,5 +1,12 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- **`.ebus-spec.json` re-anchored to the current spec, and one stale pin corrected.** The lockfile pointed at spec commit `6e582c9` (2026-08-01); the spec has since moved two commits. Auditing all 20 pins against the spec's own `spec-manifest.json` found exactly one out of date: `registries.device-types`, still `0.4` where the spec is `0.5`. The other 19 (framework, 14 capabilities, 3 devices, `capability-types`) were already current, and all 15 vendored capability catalogs under `wire/catalogs/` are byte-identical to the spec at the new anchor, so no profile or datatype changed. `device-types` 0.5 registered `utility-meter` and the BESS child roles `battery`, `inverter` and `meter`; this package publishes none of those seven-plus-four types, so the bump is a provenance correction with no effect on the published tree. The lockfile ships in the sdist, which is why it is worth keeping honest.
+- **A note in that lockfile that had gone stale.** It read "Remaining spec reconciliation: pv omits `meter`", framing a settled decision as outstanding work. `pv` omitting `meter` is a deliberate SPAN-variant deviation: the spec's `device_types[pv]` is `info+meter`, which is spec-forward, and SPAN has not adopted it, so composing it would make the variant diverge from the hardware it exists to mirror. Composing it for the `reference` variant alone would need a base-and-overlay "remove" mechanism the loader does not have (an overlay can add and override, not strip) plus a per-PV generation source the simulator lacks. The note now says that, so the next reader does not go looking for work that was already decided.
+
 ## [0.4.1] - 2026-08-08
 
 ### Fixed
