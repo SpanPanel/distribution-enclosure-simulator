@@ -1,13 +1,19 @@
 """Walk the manifest + mapping descriptors + profiles, build the ebus-sdk Device graph.
 
-The graph is pure structure: a root ``Device`` (which owns the shared MQTT
-connection, built from ``mqtt_cfg``) plus one child ``Device`` per
-``child-of-parent`` entity, wired via ebus-sdk's ``parent=`` so the SDK
-maintains ``children``/``root``/``parent`` and emits each device's
-``$description`` itself. Construction opens no socket: the root's client
-connects only when ``start_mqtt_client()`` is called. Behaviour wiring (settable
-``/set`` callbacks) and per-tick value publishing live elsewhere; this module
-owns topology + schema only.
+The graph is pure structure: a root ``Device`` holding the shared MQTT
+connection, plus one child ``Device`` per ``child-of-parent`` entity, wired via
+ebus-sdk's ``parent=`` so the SDK maintains ``children``/``root``/``parent`` and
+emits each device's ``$description`` itself. Children publish through the root's
+connection either way.
+
+Exactly one of ``mqtt_cfg`` or ``mqttc`` names that connection: the first has the
+SDK build a client it owns, the second injects one the caller owns and the SDK
+never starts or stops. Construction opens no socket in either case — an owned
+client connects only when ``start_mqtt_client()`` is called, and an injected one
+is the caller's to connect.
+
+Behaviour wiring (settable ``/set`` callbacks) and per-tick value publishing live
+elsewhere; this module owns topology + schema only.
 """
 
 from __future__ import annotations
@@ -20,7 +26,7 @@ import ebus_sdk
 
 from ebus_panel_sim.exceptions import ManifestValidationError, ProfileValidationError
 from ebus_panel_sim.manifest import DeviceInstance, DeviceManifest
-from ebus_panel_sim.wire._sdk_seam import make_property
+from ebus_panel_sim.wire._sdk_seam import MqttDeviceTransport, make_property
 from ebus_panel_sim.wire.mapping_loader import MappingDescriptor, MappingTable
 from ebus_panel_sim.wire.profile_loader import Profile, ProfileTable
 
@@ -43,37 +49,79 @@ class BuiltGraph:
     root_id: str = ""
 
 
-def build_graph(
-    manifest: DeviceManifest,
-    mapping: MappingTable,
-    profiles: ProfileTable,
-    *,
-    mqtt_cfg: dict[str, Any],
-) -> BuiltGraph:
-    """Build the SDK device tree. ``mqtt_cfg`` is the broker config handed to the
-    root device (a plain dict: ``host``/``port``/TLS/auth keys per ebus-mqtt-client);
-    children share the root's connection. No socket opens here."""
-    graph = BuiltGraph()
-
+def root_entity_class(mapping: MappingTable) -> str:
+    """The entity class the mapping table designates as the tree's root device."""
     root_descriptors = [m for m in mapping.values() if m.placement.kind == "root-device"]
     if len(root_descriptors) != 1:
         raise ManifestValidationError(
             f"Expected exactly one root-device descriptor, got {len(root_descriptors)}"
         )
-    root_class = root_descriptors[0].entity_class
+    return root_descriptors[0].entity_class
 
+
+def root_instance_of(manifest: DeviceManifest, mapping: MappingTable) -> DeviceInstance:
+    """The manifest's single root instance.
+
+    Shared with ``Emitter.lwt_settings``, which has to name the root before a
+    graph exists: a caller-registered Last Will must describe the same device the
+    built tree will publish as, and deriving both from here is what guarantees it.
+    """
+    root_class = root_entity_class(mapping)
     root_instances = manifest.of_class(root_class)
     if len(root_instances) != 1:
         raise ManifestValidationError(
             f"Expected exactly one {root_class!r} instance in manifest, got {len(root_instances)}"
         )
-    root_instance = root_instances[0]
+    return root_instances[0]
 
-    root_device = ebus_sdk.Device(
-        root_instance.instance_id,
-        name=root_instance.display_name,
-        type=profiles[root_class].type,
-        mqtt_cfg=mqtt_cfg,
+
+def build_graph(
+    manifest: DeviceManifest,
+    mapping: MappingTable,
+    profiles: ProfileTable,
+    *,
+    mqtt_cfg: dict[str, Any] | None = None,
+    mqttc: MqttDeviceTransport | None = None,
+) -> BuiltGraph:
+    """Build the SDK device tree. No socket opens here.
+
+    Exactly one of ``mqtt_cfg`` or ``mqttc`` names the root's connection, and
+    children share whichever it is:
+
+    - ``mqtt_cfg`` — a broker config dict (``host``/``port``/TLS/auth keys per
+      ebus-mqtt-client) from which the SDK builds and owns a client.
+    - ``mqttc`` — a client the caller already owns, per ebus-sdk's
+      bring-your-own-transport contract. The SDK uses it as-is and never starts
+      or stops it.
+    """
+    if (mqtt_cfg is None) == (mqttc is None):
+        raise ManifestValidationError(
+            "build_graph requires exactly one of mqtt_cfg= or mqttc=; "
+            f"got mqtt_cfg={'set' if mqtt_cfg is not None else 'None'}, "
+            f"mqttc={'set' if mqttc is not None else 'None'}"
+        )
+
+    graph = BuiltGraph()
+
+    root_class = root_entity_class(mapping)
+    root_instance = root_instance_of(manifest, mapping)
+
+    # The SDK takes one or the other, never both: mqtt_cfg has it build a client
+    # it owns; mqttc hands it one the caller owns.
+    root_device = (
+        ebus_sdk.Device(
+            root_instance.instance_id,
+            name=root_instance.display_name,
+            type=profiles[root_class].type,
+            mqttc=mqttc,
+        )
+        if mqttc is not None
+        else ebus_sdk.Device(
+            root_instance.instance_id,
+            name=root_instance.display_name,
+            type=profiles[root_class].type,
+            mqtt_cfg=mqtt_cfg,
+        )
     )
     graph.devices[root_instance.instance_id] = root_device
     graph.root_id = root_instance.instance_id

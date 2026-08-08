@@ -2,6 +2,25 @@
 
 ## [Unreleased]
 
+### Added
+
+- **Bring-your-own-transport.** `Emitter(..., mqttc=client)` publishes the tree through a client the caller already owns, instead of having one built from `mqtt_cfg`. The two are mutually exclusive and passing both raises. This mirrors ebus-sdk's `Device(mqttc=...)` contract, and the case it serves is a host that cannot afford a second connection — a Home Assistant add-on, whose MQTT integration is `single_config_entry` and which forbids background threads (`ebus-mqtt-client` 0.4.0's `asyncio_driver()` covers pumping the loop). See the README's "Bring your own transport" section for the required wiring order, and the notes below for the behaviour that differs from the `mqtt_cfg` path.
+- **`Emitter.lwt_settings(manifest)`** returns the Last Will to register on a client you intend to inject. A `staticmethod` because it has to be answerable before an `Emitter` exists: the will rides the MQTT CONNECT packet, so it must be on the client before the client connects, which is before that client can be handed to a constructor. The descriptor comes from the SDK's own `Device.will()` — the same function the SDK passes as `lwt=` when it builds a client itself — so a caller-registered will is identical to an SDK-registered one rather than merely similar, and the shape drops into `MqttClient(lwt=...)` unchanged. Without it an injected tree has no will at all, and an unclean death leaves consumers reading a stale retained `ready` indefinitely.
+- **`Emitter.republish_tree()`** re-announces the whole retained tree, for wiring to an injected client's on-connect handler. The SDK registers this itself only for a client it built.
+
+### Fixed
+
+- **`stop(graceful=False)` left the root Device holding `ready` on an injected transport.** 0.3.3 moved the state before publishing but sourced that call through `owned_client()`, which returns None for a caller-supplied client, so the whole ungraceful teardown was a no-op there: object on `ready`, nothing on the wire. Latent in 0.3.3, because `mqttc=` did not exist to reach it; reachable the moment this release adds it. `set_state` now runs before the ownership split. This is the one entry here describing a defect in released code, and it could not be triggered by a 0.3.3 user.
+
+### Notes on the bring-your-own-transport path
+
+Behaviour that is specific to `mqttc=` and easy to get wrong. None of it is a change to the `mqtt_cfg` path, whose wire output is byte-identical to 0.3.3.
+
+- **`start()` does not wait, and there is nothing to wait for.** The SDK never starts a client it did not build, so polling `is_connected()` would stall the very event loop such a client is likely driven on without changing the outcome. Values are retained; the tree goes out on the first `publish_tick`.
+- **`stop()` never stops your client, on either path.** Ownership decides, not type — an injected client can itself be an `MqttClient`. It does still go mute: ebus-sdk's `Device.stop()` clears the root's transport reference regardless of ownership, so `republish_tree()` publishes nothing afterwards and an on-connect hook wired to it becomes a silent no-op on a still-live client. Build a new `Emitter` to resume.
+- **Nothing re-announces your tree unless you wire it.** The SDK registers its on-(re)connect republish inside `connect_broker()`, below an `if self.mqttc` early return that an injected client always takes. Measured against a real broker with the retained store wiped: an injected tree came back 5 topics of 56, every `$description` missing, where an owned one came back all 56. `republish_tree()` is the remedy; the README recipe wires it.
+- **Let your event loop turn before closing the client.** `stop(graceful=False)` queues the `lost` rather than flushing it — `wait_for_publish` would block the very thread that has to run `loop_write` for a client pumped by `asyncio_driver`. Closing the client in the same synchronous breath drops the message and leaves the retained tree on `ready`: deterministic, not a race. There is nothing to await; one turn of the loop is the whole remedy.
+
 ## [0.3.3] - 2026-08-07
 
 ### Fixed

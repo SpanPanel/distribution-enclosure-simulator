@@ -49,9 +49,14 @@ from ebus_panel_sim.snapshot import (
     EbusPvSnapshot,
 )
 from ebus_panel_sim.tick_inputs import TickInputs
-from ebus_panel_sim.wire._sdk_seam import owned_client, publish_will_now
+from ebus_panel_sim.wire._sdk_seam import (
+    MqttDeviceTransport,
+    owned_client,
+    publish_will_now,
+    will_for_root_id,
+)
 from ebus_panel_sim.wire.bag_builder import BagBuilder
-from ebus_panel_sim.wire.graph_builder import build_graph
+from ebus_panel_sim.wire.graph_builder import build_graph, root_instance_of
 from ebus_panel_sim.wire.mapping_loader import load_mapping_table
 from ebus_panel_sim.wire.profile_loader import Variant, load_profiles
 from ebus_panel_sim.wire.publisher import Publisher
@@ -74,12 +79,34 @@ class Emitter:
         setter_registry: SetterRegistry,
         *,
         mqtt_cfg: dict[str, Any] | None = None,
+        mqttc: MqttDeviceTransport | None = None,
         bess_configs: tuple[BESSConfig, ...] = (),
         load_shedding_config: LoadSheddingConfig | None = None,
         variant: Variant = "span",
     ) -> None:
         self._manifest = manifest
-        self._mqtt_cfg = dict(mqtt_cfg) if mqtt_cfg is not None else dict(_DEFAULT_MQTT_CFG)
+        # Bring-your-own-transport: a caller that already owns a connected client
+        # passes it as ``mqttc`` and the SDK publishes through it, never starting
+        # or stopping it. Mutually exclusive with ``mqtt_cfg``, which has the SDK
+        # build a client it owns.
+        #
+        # Registering the Last Will on an injected client is the CALLER'S job, and
+        # has to happen before they connect it: the will rides the MQTT CONNECT
+        # packet, so neither the SDK nor this emitter can attach one to a client
+        # handed over already connected (``Device.will()`` is exposed for exactly
+        # this, and returns the descriptor to register). Without it the tree can
+        # still reach ``$state=lost`` through ``stop(graceful=False)``, which
+        # publishes the same payload itself — but that covers orderly teardown
+        # only. A caller that wants a *dropped* process to show as lost, which is
+        # what a will is for, must register it.
+        if mqttc is not None and mqtt_cfg is not None:
+            raise EmitterStateError("Emitter takes mqtt_cfg= or mqttc=, not both")
+        self._mqttc = mqttc
+        self._owns_client = mqttc is None
+        if mqttc is not None:
+            self._mqtt_cfg = None
+        else:
+            self._mqtt_cfg = dict(mqtt_cfg) if mqtt_cfg is not None else dict(_DEFAULT_MQTT_CFG)
 
         # variant="span" (default) publishes the SPAN-faithful surface (status
         # diagnostics, read-only shed/policy, the legacy evse config); "reference"
@@ -88,9 +115,13 @@ class Emitter:
         self._mapping = load_mapping_table()
         self._mapping.validate_against(self._profiles)
 
-        # The root device owns the shared MQTT connection built from mqtt_cfg;
-        # children share it. Construction opens no socket (deferred to start()).
-        self._graph = build_graph(manifest, self._mapping, self._profiles, mqtt_cfg=self._mqtt_cfg)
+        # The root device holds the shared connection — built from mqtt_cfg, or
+        # the caller's when injected — and children publish through it either
+        # way. Construction opens no socket: an owned client connects in start(),
+        # an injected one is already the caller's to connect.
+        self._graph = build_graph(
+            manifest, self._mapping, self._profiles, mqtt_cfg=self._mqtt_cfg, mqttc=self._mqttc
+        )
         self._root = self._graph.devices[self._graph.root_id]
 
         # ---- native-device + physics state (must exist before internal /set
@@ -188,14 +219,104 @@ class Emitter:
                     )
                 )
 
-    def start(self, *, connect_timeout_s: float = 5.0) -> None:
-        """Open the MQTT connection and publish the retained device tree.
+    @staticmethod
+    def lwt_settings(manifest: DeviceManifest) -> dict[str, str]:
+        """The Last Will to register on a client you intend to inject.
 
-        ebus-sdk publishes each device's ``$description`` + ``$state`` and
-        subscribes the ``/set`` topics itself once the link comes up (on_connect
-        -> refresh_tree). We start the root's shared client and wait, bounded,
-        for the link so the first ``publish_tick`` lands live; publishing before
-        connect is still safe (values are retained and republished on connect)."""
+        A ``staticmethod`` taking the manifest, because it has to be answerable
+        *before* there is an ``Emitter`` to ask: the will rides the MQTT CONNECT
+        packet, so it must be on the client before the client connects, which is
+        before you can hand that client to a constructor. An instance method here
+        would be unusable by definition.
+
+        The root is derived from the same mapping table ``build_graph`` uses, so
+        the will names the device the tree will actually publish as, and the
+        descriptor itself comes from the SDK's ``Device.will()`` — the very
+        function the SDK passes as ``lwt=`` when it builds a client of its own.
+        A caller-registered will is therefore identical to an SDK-registered one
+        rather than merely similar.
+
+        The shape drops into ``MqttClient(lwt=...)`` unchanged. The full wiring,
+        in the order it has to happen::
+
+            from ebus_mqtt_client import MqttClient
+
+            from ebus_panel_sim import Emitter, SetterRegistry
+
+            lwt = Emitter.lwt_settings(manifest)
+            client = MqttClient.from_config(
+                {"host": "127.0.0.1", "port": 1883}, client_id="my-host", lwt=lwt
+            )
+            emitter = Emitter(manifest, SetterRegistry(), mqttc=client)
+            client.on_connect_callback = emitter.republish_tree
+            client.start()
+
+        ``on_connect_callback`` is assigned after construction rather than passed
+        to ``from_config`` because the callback needs the emitter and the emitter
+        needs the client; omitting it leaves the tree unable to come back after a
+        broker restart. See the README's "Bring your own transport" section for
+        what each step buys.
+
+        Without the will the tree has none at all on an injected transport, and an
+        ungraceful death leaves consumers reading a stale retained ``ready``
+        indefinitely. ``stop(graceful=False)`` covers only orderly teardown.
+        """
+        root = root_instance_of(manifest, load_mapping_table())
+        return will_for_root_id(root.instance_id)
+
+    def republish_tree(self) -> None:
+        """Re-announce the whole retained tree. Wire this to your client's
+        on-connect handler when you inject a transport.
+
+        For a client the SDK builds, it registers this itself inside
+        ``connect_broker()`` and every reconnect republishes automatically. That
+        registration sits *below* an ``if self.mqttc: return``, so an injected
+        client never reaches it — the SDK says as much, and asks the caller to
+        call it from their own on-connect handler.
+
+        Nothing else covers the gap. Retained values survive on the broker, but a
+        broker that loses its retained store (restart, eviction, a fresh
+        deployment) drops the tree, and only a re-announce brings it back. What
+        comes back without this is whatever later ticks happen to republish:
+        measured against a real broker, 5 topics of 56, with every
+        ``$description`` missing.
+        """
+        self._root.refresh_tree()
+
+    def start(self, *, connect_timeout_s: float = 5.0) -> None:
+        """Mark the emitter ready to publish; with ``mqtt_cfg=``, open the connection too.
+
+        The two paths differ in almost everything this method does, so the
+        summary above deliberately promises only what both deliver.
+
+        **Owned (``mqtt_cfg=``)** — opens the MQTT connection and publishes the
+        retained device tree. ebus-sdk publishes each device's ``$description`` +
+        ``$state`` and subscribes the ``/set`` topics itself once the link comes
+        up (on_connect -> refresh_tree). We start the root's shared client and
+        wait, bounded, for the link so the first ``publish_tick`` lands live;
+        publishing before connect is still safe, since values are retained and
+        the SDK's own on-connect hook republishes the tree.
+
+        **Injected (``mqttc=``)** — opens nothing and publishes nothing. The
+        caller connects their own client, and the tree goes out on the first
+        ``publish_tick``. Returns immediately; see the comment below for why
+        waiting would be wrong rather than merely pointless."""
+        if not self._owns_client:
+            # The caller owns the connection and its timing. Blocking here would
+            # stall the very loop an injected client is likely being driven on,
+            # and the SDK never starts a client it did not build, so there is
+            # nothing to wait for.
+            #
+            # Note what does NOT rescue an early publish here: the SDK registers
+            # its on-connect republish inside connect_broker(), which returns at
+            # `if self.mqttc` before reaching that registration for an injected
+            # client. So nothing republishes on reconnect unless the caller wired
+            # `republish_tree` themselves -- see that method, and the README's
+            # "Bring your own transport" wiring order. Measured against a real
+            # broker: after wiping the retained store, an injected tree came back
+            # 5 topics of 56, an owned one all 56.
+            self._started = True
+            return
         self._root.start_mqtt_client()
         deadline = time.monotonic() + connect_timeout_s
         while not self._root.is_connected() and time.monotonic() < deadline:
@@ -248,11 +369,25 @@ class Emitter:
         self._bess[instance_id].set_soe(soe_kwh)
 
     def stop(self, *, graceful: bool = True, clear_retained: bool = False) -> None:
-        """Tear down the MQTT connection.
+        """Take the tree down. With ``mqtt_cfg=``, tear down the connection too.
 
-        Graceful (default): publish the root's ``$state=disconnected`` then stop
-        the shared client (ebus-sdk's bounded teardown; per Homie's
-        effective-state rule the root going disconnected covers every child).
+        Graceful (default): publish the root's ``$state=disconnected``; per
+        Homie's effective-state rule the root going disconnected covers every
+        child. For a client this emitter built, that is followed by ebus-sdk's
+        bounded teardown, which stops it.
+
+        A caller-injected client is **never** stopped — the emitter did not build
+        it and may not be its only user. Two consequences a BYO caller has to
+        know, because neither is visible:
+
+        * The connection stays open and connected after this returns. Closing it
+          is yours to do, and yours to time (see the non-graceful note below).
+        * The emitter goes mute regardless. ebus-sdk's ``Device.stop()`` clears
+          the root's transport reference on both paths, so ``republish_tree()``
+          silently publishes nothing afterwards. If you wired it to your client's
+          on-connect handler, as the README's recipe does, that hook is still
+          attached to a live client and is now a no-op. Build a new ``Emitter``
+          to resume publishing.
 
         Non-graceful: leave the tree looking like a producer that died, by
         publishing the root's ``$state=lost`` retained before dropping the
@@ -268,13 +403,31 @@ class Emitter:
         waits on keepalive expiry. A consumer exercising the *retained* view sees
         the same thing either way; one exercising live will delivery does not.
 
+        **On an injected transport, let the loop turn before you close the
+        client.** The ``lost`` is queued on the caller's loop, not flushed — the
+        emitter cannot flush it, and would not want to: ``wait_for_publish``
+        blocks the very thread that has to run ``loop_write`` for a client pumped
+        by ``asyncio_driver``. Closing the client in the same synchronous breath
+        as this call therefore drops the message and leaves the retained tree on
+        ``ready``, deterministically. There is nothing to await: letting the loop
+        turn once before you close the client is the whole remedy.
+
         ``clear_retained`` additionally clears every device's retained values +
         ``$description`` before disconnecting, for a clean-slate re-run. It
         applies to the graceful path only, since a producer that died clears
         nothing."""
         if not graceful:
-            publish_will_now(self._root)
-            client = owned_client(self._root.mqttc)
+            # Only ever stop a client this emitter had built for it. Stopping an
+            # injected one would tear down a connection the caller owns and may
+            # be using for other things. Ownership is what decides, not the type:
+            # an injected client can itself be an ``MqttClient`` (a caller driving
+            # one on its own event loop via ``asyncio_driver``), so the narrowing
+            # below only makes the ``stop()`` call well-typed.
+            client = owned_client(self._root.mqttc) if self._owns_client else None
+            # Before the stop, not after: an owned client's connection is gone
+            # once it returns. The injected path publishes too — see
+            # ``publish_will_now``, which is where the two differ.
+            publish_will_now(self._root, owned=client)
             if client is not None:
                 client.stop()
             return

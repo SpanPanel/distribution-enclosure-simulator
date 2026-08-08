@@ -16,6 +16,28 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 
+def effective_retained(published: list[tuple[str, str, int, bool]]) -> dict[str, str]:
+    """The retained view a late-joining consumer would see.
+
+    Last non-empty retained payload per topic; an empty retained payload is a
+    retraction and removes the topic rather than storing ``""``. Non-retained
+    publishes are invisible to a late joiner and do not appear.
+
+    Shared by every recorder rather than reimplemented per transport: two views
+    that disagree about what "retained" means would let a test assert against a
+    consumer that does not exist.
+    """
+    out: dict[str, str] = {}
+    for topic, data, _qos, retain in published:
+        if not retain:
+            continue
+        if data == "":
+            out.pop(topic, None)
+        else:
+            out[topic] = data
+    return out
+
+
 class PahoRecorder:
     """Read model over the mocked paho client's recorded calls."""
 
@@ -31,17 +53,7 @@ class PahoRecorder:
 
     @property
     def retained(self) -> dict[str, str]:
-        """Effective retained state: last non-empty retained payload per topic;
-        an empty retained payload retracts the topic."""
-        out: dict[str, str] = {}
-        for topic, data, _qos, retain in self.published:
-            if not retain:
-                continue
-            if data == "":
-                out.pop(topic, None)
-            else:
-                out[topic] = data
-        return out
+        return effective_retained(self.published)
 
     @property
     def subscribed(self) -> list[str]:
