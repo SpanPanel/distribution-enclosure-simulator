@@ -139,6 +139,37 @@ _VALID_INVERTER_TYPES = frozenset({"hybrid", "ac-coupled"})
 _VALID_TOPOLOGIES = frozenset({"flat", "parent-child"})
 
 
+_DEPRECATED_KEYS = {"feed-circuit-id": "feed"}
+
+
+def _warn_deprecated_keys(manifest: DeviceManifest) -> None:
+    """Raise one ``DeprecationWarning`` per manifest naming the instances at fault.
+
+    Deliberately not raised from the leaf that reads the key. Python's default
+    filter only *shows* a ``DeprecationWarning`` attributed to ``__main__``, so
+    where the warning appears to come from decides whether the producer ever
+    sees it at all. Warning from ``_feed`` attributes it to this module, which
+    both blames the wrong file and hides it outside a test runner: a deprecation
+    nobody can see is worse than none, because it lets us believe we gave notice.
+
+    Raising it here, once, from the public constructor puts the blame on the
+    caller's own line. ``stacklevel=3`` walks this frame and ``__init__``'s. A
+    producer who goes through ``Emitter`` instead lands on the emitter's
+    construction of this view rather than their own line, which is the one case
+    this cannot fix from a single site: there is no stack depth that is correct
+    for both entry points.
+    """
+    for key, replacement in _DEPRECATED_KEYS.items():
+        culprits = sorted({i.instance_id for i in manifest.instances if key in i.metadata})
+        if culprits:
+            warnings.warn(
+                f"metadata key {key!r} is deprecated; use {replacement!r} instead "
+                f"(on {', '.join(culprits)})",
+                DeprecationWarning,
+                stacklevel=3,
+            )
+
+
 class ManifestPhysicsView:
     """Validated, typed view over a ``DeviceManifest``'s metadata.
 
@@ -148,6 +179,7 @@ class ManifestPhysicsView:
     values; the emitter never sees a partially-validated manifest."""
 
     def __init__(self, manifest: DeviceManifest) -> None:
+        _warn_deprecated_keys(manifest)
         self._panel: PanelPhysics | None = None
         self._lugs: dict[str, LugsPhysics] = {}
         self._circuits: dict[str, CircuitPhysics] = {}
@@ -397,19 +429,10 @@ def _feed(md: dict[str, str]) -> str | None:
     manifests keep working, but it is deliberately absent from the README's
     metadata table: documenting it would entrench two names for one concept.
 
-    The warning fires whenever the alias is *present*, not only when it is the
-    one that resolves. A producer part-way through migrating passes both for a
-    release, and staying quiet then is exactly when they would never learn the
-    old key had become dead weight.
+    Resolution only. The `DeprecationWarning` is raised once per manifest by
+    `_warn_deprecated_keys`, not here; see that function for why.
     """
-    legacy = _opt_str(md, "feed-circuit-id")
-    if legacy is not None:
-        warnings.warn(
-            "metadata key 'feed-circuit-id' is deprecated; use 'feed' instead",
-            DeprecationWarning,
-            stacklevel=3,
-        )
-    return _opt_str(md, "feed") or legacy
+    return _opt_str(md, "feed") or _opt_str(md, "feed-circuit-id")
 
 
 def _parse_bess(inst: DeviceInstance) -> BessPhysics:

@@ -308,6 +308,28 @@ def test_feed_circuit_id_still_works_but_warns() -> None:
     assert view.bess("b1").feed == "c7"
 
 
+def test_the_deprecation_blames_the_caller_not_our_own_module() -> None:
+    """Where the warning is attributed decides whether anyone ever sees it.
+
+    Python's default filter shows a DeprecationWarning only when it is
+    attributed to `__main__`, so a warning raised from the leaf that reads the
+    key is both misattributed and silently dropped outside a test runner. That
+    is worse than no deprecation, because it looks like notice was given. This
+    pins the frame, which is the property that makes it visible at all.
+    """
+    with pytest.warns(DeprecationWarning) as rec:
+        _bess_with(**{"feed-circuit-id": "c7"})
+    assert len(rec) == 1, "one warning per manifest, not one per device"
+    assert rec[0].filename == __file__, f"blamed {rec[0].filename}, not the caller's file"
+
+
+def test_the_deprecation_names_the_offending_instances() -> None:
+    """A manifest with many devices should say which one to edit."""
+    with pytest.warns(DeprecationWarning, match=r"on b1") as rec:
+        _bess_with(**{"feed-circuit-id": "c7"})
+    assert "feed-circuit-id" in str(rec[0].message)
+
+
 def test_feed_is_silent_and_wins_over_the_alias() -> None:
     """The current name must not warn, and must win when both are present.
 
