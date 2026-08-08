@@ -36,12 +36,15 @@ from ebus_panel_sim.manifest_physics import (
     EvsePhysics,
     LugsPhysics,
     ManifestPhysicsView,
+    MidPhysics,
     PanelPhysics,
     PvPhysics,
 )
 from ebus_panel_sim.native_devices import (
     BESSConfig,
     BESSDevice,
+    ChargeMode,
+    DispatchState,
     LoadSheddingConfig,
     LoadSheddingDevice,
     NativeDevice,
@@ -53,11 +56,14 @@ from ebus_panel_sim.snapshot import (
     EbusCircuitSnapshot,
     EbusEvseSnapshot,
     EbusLugsSnapshot,
+    EbusMidSnapshot,
     EbusPanelDoor,
     EbusPanelInfo,
     EbusPanelMeter,
     EbusPanelPcs,
     EbusPanelPowerFlows,
+    EbusPanelShed,
+    EbusPanelShedForecast,
     EbusPanelSnapshot,
     EbusPanelStatus,
     EbusPvSnapshot,
@@ -69,6 +75,7 @@ from ebus_panel_sim.tick_inputs import PanelEnvelopeTick, TickInputs
 # import from `ebus_sdk` directly, which is exactly the coupling the wire seam
 # exists to spare it.
 from ebus_panel_sim.wire._sdk_seam import MqttDeviceTransport
+from ebus_panel_sim.wire.profile_loader import Variant
 from ebus_panel_sim.wire.set_router import SetterHandler, SetterRegistry
 
 # Single source of truth for the distribution version: pyproject reads it from here
@@ -81,18 +88,23 @@ __all__ = [
     "BESSConfig",
     "BESSDevice",
     "BessPhysics",
+    "ChargeMode",
     "CircuitPhysics",
     "DeviceInstance",
     "DeviceManifest",
+    "DispatchState",
     "EbusBatterySnapshot",
     "EbusCircuitSnapshot",
     "EbusEvseSnapshot",
     "EbusLugsSnapshot",
+    "EbusMidSnapshot",
     "EbusPanelDoor",
     "EbusPanelInfo",
     "EbusPanelMeter",
     "EbusPanelPcs",
     "EbusPanelPowerFlows",
+    "EbusPanelShed",
+    "EbusPanelShedForecast",
     "EbusPanelSnapshot",
     "EbusPanelStatus",
     "EbusPvSnapshot",
@@ -106,6 +118,7 @@ __all__ = [
     "LugsPhysics",
     "ManifestPhysicsView",
     "ManifestValidationError",
+    "MidPhysics",
     "MissingSetterError",
     "MqttDeviceTransport",
     "NativeDevice",
@@ -121,6 +134,7 @@ __all__ = [
     "SetterHandler",
     "SetterRegistry",
     "TickInputs",
+    "Variant",
     "__version__",
     "legs_for_tabs",
 ]
