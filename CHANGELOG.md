@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-08-08
+
+Adds bring-your-own-transport: a producer that already owns its MQTT connection can publish an eBus tree through it. Additive, so nothing existing changes; the minor bump reflects new public API rather than a break.
+
+The caller obligations are the part to read before using it. An injected client bypasses the SDK's connect path, so the Last Will and the on-(re)connect republish are yours to wire, and the emitter cannot do either on your behalf. `Notes on the bring-your-own-transport path` below states each one and what it costs to skip it; the README carries the wiring order as a recipe that the test suite executes from the file itself.
+
 ### Added
 
 - **Bring-your-own-transport.** `Emitter(..., mqttc=client)` publishes the tree through a client the caller already owns, instead of having one built from `mqtt_cfg`. The two are mutually exclusive and passing both raises. This mirrors ebus-sdk's `Device(mqttc=...)` contract, and the case it serves is a host that cannot afford a second connection — a Home Assistant add-on, whose MQTT integration is `single_config_entry` and which forbids background threads (`ebus-mqtt-client` 0.4.0's `asyncio_driver()` covers pumping the loop). See the README's "Bring your own transport" section for the required wiring order, and the notes below for the behaviour that differs from the `mqtt_cfg` path.
