@@ -12,8 +12,6 @@ from typing import Any
 
 import ebus_sdk
 from ebus_sdk import (
-    EBUS_HOMIE_MQTT_QOS,
-    DeviceState,
     MqttClient,
     MqttDeviceTransport,
     PropertyDatatype,
@@ -26,7 +24,6 @@ __all__ = [
     "MqttDeviceTransport",
     "make_property",
     "owned_client",
-    "publish_will_now",
     "will_for_root_id",
 ]
 
@@ -92,78 +89,3 @@ def will_for_root_id(root_id: str) -> dict[str, str]:
     it drops straight in where either is expected.
     """
     return ebus_sdk.Device(root_id).will()
-
-
-def publish_will_now(root: ebus_sdk.Device, *, owned: MqttClient | None) -> bool:
-    """Publish the root's will payload (``$state=lost``) as a retained message, now.
-
-    A Last Will fires only when the broker sees an UNCLEAN disconnect. Every
-    orderly teardown path here sends a clean DISCONNECT, and ebus-mqtt-client does
-    that deliberately (``MqttClient.stop`` -> ``mqttc.disconnect()``), precisely so
-    a normal shutdown is not reported to consumers as a crash. The consequence is
-    that a simulator asked to *act* like a producer that died cannot get there by
-    letting the will fire: it has to publish the will's own payload itself.
-
-    Topic and payload come from ``Device.will()``, the same descriptor the SDK
-    registers as the LWT, so this cannot drift from what a real will would have
-    delivered.
-
-    QoS deliberately follows the rest of the tree's ``$state`` publishes rather
-    than the ``qos=0`` default the will registration uses: a registered will is
-    delivered by the broker from its own state, whereas this goes out over a live
-    connection that is about to close and has to actually land first.
-
-    ``set_state`` moves the root's own state to ``LOST`` first, mirroring what
-    ``Device.stop()`` does for ``DISCONNECTED``. Publishing a state the device
-    object does not itself hold leaves the two disagreeing, and anything that later
-    re-announces from that object (``refresh_tree()``, which the SDK asks a
-    bring-your-own-transport caller to wire onto their client's on-connect handler)
-    republishes ``ready`` straight over the ``lost`` we just sent.
-
-    It runs before the ownership split rather than after, because that
-    re-announce is only *reachable* on the injected path. An owned client's
-    connection closes immediately behind this call, so nothing survives to
-    re-announce from; a caller-supplied one stays up, reconnects, and does. Both
-    paths need the state moved, and the path that needs it most is the one an
-    ownership guard would have skipped.
-
-    ``set_state`` also publishes ``$state`` itself, retained and at the device's
-    QoS, through whichever transport the root holds — so on an injected transport
-    that one call is the entire job, and nothing follows it here.
-
-    An earlier revision added an explicit ``transport.publish`` after it, to hand
-    the caller a paho ``MQTTMessageInfo`` to wait on. That is removed, because it
-    was a byte-identical duplicate of what ``set_state`` had just sent and the
-    handle it produced was unusable: waiting on it from the loop thread blocks for
-    the full timeout and never completes, which is the same reason
-    ``publish_and_flush`` is wrong on this path. Publishing twice to widen a
-    window the caller cannot observe is not a service to them.
-
-    The owned path does still repeat the value, for a different and real reason:
-    ``set_state`` goes through the ordinary unflushed path, the socket closes
-    immediately behind this function, and only a flushed publish is guaranteed to
-    land first.
-
-    **Caller obligation on an injected transport.** The ``lost`` is *queued* on
-    the caller's loop, not flushed, and the emitter cannot flush it for them.
-    Tearing the client down in the same synchronous breath as
-    ``stop(graceful=False)`` drops it — measured as deterministic against a real
-    broker with an ``asyncio_driver``-pumped client: an immediate ``driver.stop()``
-    leaves the retained root at ``ready``, while letting the loop turn first
-    leaves it at ``lost``. Letting the loop turn is the whole remedy; there is
-    nothing to await.
-
-    Returns whether the ``lost`` is on the wire as far as this function can tell:
-    for an owned client, whether the flush completed; for an injected one,
-    whether ``set_state`` moved the state and published (False when it was
-    already ``LOST``, in which case the wire already carries it).
-    """
-    moved = root.set_state(DeviceState.LOST)
-    if owned is None:
-        return moved
-    will = root.will()
-    return bool(
-        owned.publish_and_flush(
-            will["topic"], will["payload"], qos=EBUS_HOMIE_MQTT_QOS, retain=True
-        )
-    )

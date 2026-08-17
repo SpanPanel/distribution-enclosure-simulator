@@ -93,3 +93,26 @@ def test_a_later_refresh_tree_re_announces_lost_not_ready(rec: PahoRecorder) -> 
     emitter.stop(graceful=False)
     emitter._root.refresh_tree()
     assert rec.retained[ROOT_STATE] == "lost"
+
+
+def test_ungraceful_stop_publishes_the_root_state_exactly_once(rec: PahoRecorder) -> None:
+    """One publish, not two.
+
+    Until this went through the SDK, the owned path published `$state` twice: once
+    via `set_state` and again as a deliberate byte-identical duplicate, because
+    only a flushed publish is guaranteed to land before the socket closes and
+    `set_state` uses the ordinary unflushed path. `Device.declare_lost()` does both
+    jobs in one flushed publish, so the duplicate is gone.
+
+    Worth pinning rather than leaving implicit: the duplicate was harmless but
+    deliberate, so a future reader seeing one publish might reasonably re-add it.
+    """
+    emitter = _started()
+    rec.reset()
+    emitter.stop(graceful=False)
+    state_publishes = [p for p in rec.published if p[0] == ROOT_STATE]
+    assert len(state_publishes) == 1, f"expected one $state publish, got {state_publishes}"
+    _topic, payload, _qos, retain = state_publishes[0]
+    assert payload == "lost", f"payload should be the wire string, got {payload!r}"
+    assert retain is True
+    assert rec.retained[ROOT_STATE] == "lost"
