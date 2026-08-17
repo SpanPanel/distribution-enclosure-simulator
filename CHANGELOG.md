@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Changed
+
+- **Floor `ebus-sdk` at 0.20.1** (from `>=0.19,<0.20`). 0.20.0 added `Device.declare_lost()` and `Device.stop(announce=False)`, the teardown API this package previously reached around the SDK to approximate, and 0.20.1 fixed two thread-safety defects in the publish path that this package's per-tick `set_value` pattern is exposed to. 0.20.0 also stopped republishing a retained value whose wire payload is byte-identical to the last one sent, which overlaps with the diff-only publishing done here: strictly fewer messages, same retained truth. Verified rather than assumed: the full retained tree published by a panel + circuit + BESS manifest over three ticks is **byte-identical** across the bump, 69 topics either way, once the `$description` `version` timestamp is normalised. The seam functions that predate the SDK API (`will_for_root_id`, `publish_will_now`) still work and are unchanged here; retiring them in favour of `declare_lost()` is a separate change.
+
 ### Fixed
 
 - **`_to_sdk_datatype` resolved Homie datatypes through a hand-maintained name table, so three of the SDK's nine published as `string`.** The table listed six datatypes and sent everything else through a silent `.get(dt, STRING)` default, which meant `datetime`, `duration` and `color` were converted to the wrong `$datatype`. It now resolves by value (`PropertyDatatype(dt.lower())`), correct by construction for every datatype the SDK models now or later. Nothing shipped was affected: no profile currently selects a property carrying one of the three, so this was latent rather than live. It was not hypothetical either. The vendored `catalogs/grid.json` has always carried two `datetime` properties (`last-outage-time`, `last-restoration-time`), and the one-line light selection that is the documented way to add a property would have published them as `string` with the full suite still green.
