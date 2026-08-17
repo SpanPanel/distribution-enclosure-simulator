@@ -310,7 +310,9 @@ def _attach_profile(
                     node=node,
                     key=prop_key,
                     name=prop.name,
-                    datatype=_to_sdk_datatype(prop.datatype),
+                    datatype=_to_sdk_datatype(
+                        prop.datatype, where=f"{entity_class} {cap_name}/{prop_key}"
+                    ),
                     unit=_to_sdk_unit(prop.unit),
                     format_str=prop.format,
                     settable=prop.settable,
@@ -328,16 +330,33 @@ def _render_node_id(template: str, instance: DeviceInstance) -> str:
     )
 
 
-def _to_sdk_datatype(dt: str) -> ebus_sdk.PropertyDatatype:
-    mapping = {
-        "string": ebus_sdk.PropertyDatatype.STRING,
-        "integer": ebus_sdk.PropertyDatatype.INTEGER,
-        "float": ebus_sdk.PropertyDatatype.FLOAT,
-        "boolean": ebus_sdk.PropertyDatatype.BOOLEAN,
-        "enum": ebus_sdk.PropertyDatatype.ENUM,
-        "json": getattr(ebus_sdk.PropertyDatatype, "JSON", ebus_sdk.PropertyDatatype.STRING),
-    }
-    return mapping.get(dt.lower(), ebus_sdk.PropertyDatatype.STRING)
+def _to_sdk_datatype(dt: str, *, where: str = "") -> ebus_sdk.PropertyDatatype:
+    """Map a Homie datatype string to an ``ebus_sdk.PropertyDatatype``.
+
+    Resolved by value, exactly like ``_to_sdk_unit`` below: ``PropertyDatatype``
+    is a str-enum whose *value* is the Homie wire string, so this is correct by
+    construction for every datatype the SDK models, now and as it gains more.
+
+    This was a hand-maintained name table until it was not. It listed six of the
+    SDK's nine datatypes, and anything else fell through a silent
+    ``.get(dt, STRING)`` default, so ``datetime``, ``duration`` and ``color``
+    published as ``string``. The vendored ``catalogs/grid.json`` already carries
+    two ``datetime`` properties, so the only thing standing between that and the
+    wire was nobody having selected one yet.
+
+    Unlike an unmodeled unit, an unmodeled datatype does not degrade: ``$datatype``
+    is a required Homie 5 attribute that consumers validate payloads against, so
+    guessing ``string`` produces a tree that is confidently wrong rather than
+    obviously broken. Raise instead.
+    """
+    try:
+        return ebus_sdk.PropertyDatatype(dt.lower())
+    except ValueError as exc:
+        known = ", ".join(sorted(m.value for m in ebus_sdk.PropertyDatatype))
+        raise ProfileValidationError(
+            f"{where or 'profile property'}: datatype {dt!r} is not one the SDK "
+            f"models ({known}); it cannot be published as a Homie $datatype"
+        ) from exc
 
 
 def _to_sdk_unit(unit: str | None) -> ebus_sdk.Unit | None:
