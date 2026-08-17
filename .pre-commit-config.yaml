@@ -22,6 +22,18 @@ repos:
         pass_filenames: false
         entry: uv run mypy --strict src tests
 
+  # The issue tracker lives outside this repository, so its IDs are meaningless
+  # to a public reader, and CHANGELOG.md ships inside the sdist to PyPI where it
+  # cannot be amended. Checks only ADDED lines, so existing occurrences in older
+  # files are grandfathered.
+  - repo: local
+    hooks:
+      - id: no-private-tracker-ids
+        name: no private tracker IDs in added lines
+        language: system
+        pass_filenames: false
+        entry: python3 scripts/check_no_tracker_ids.py
+
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
     hooks:
