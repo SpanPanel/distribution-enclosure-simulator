@@ -52,7 +52,6 @@ from ebus_panel_sim.tick_inputs import TickInputs
 from ebus_panel_sim.wire._sdk_seam import (
     MqttDeviceTransport,
     owned_client,
-    publish_will_now,
     will_for_root_id,
 )
 from ebus_panel_sim.wire.bag_builder import BagBuilder
@@ -395,8 +394,9 @@ class Emitter:
         is emphatically NOT what a bare disconnect gives you: the Last Will fires
         only on an *unclean* disconnect, and every teardown here closes cleanly,
         so relying on the will would leave the whole retained tree claiming
-        ``ready`` forever. See ``publish_will_now``, which sources the topic and
-        payload from ``Device.will()`` so this cannot drift from the real thing.
+        ``ready`` forever. This goes through ebus-sdk's ``Device.declare_lost()``,
+        which publishes exactly the topic and payload ``Device.will()`` describes,
+        so the declared and will-driven paths cannot drift.
 
         The difference from a real will is timing and delivery, not content: this
         lands immediately over the live connection, where a broker-delivered will
@@ -425,9 +425,11 @@ class Emitter:
             # below only makes the ``stop()`` call well-typed.
             client = owned_client(self._root.mqttc) if self._owns_client else None
             # Before the stop, not after: an owned client's connection is gone
-            # once it returns. The injected path publishes too — see
-            # ``publish_will_now``, which is where the two differ.
-            publish_will_now(self._root, owned=client)
+            # once it returns. ``declare_lost`` handles the ownership split
+            # itself — flushed on a client the SDK owns, queued on the caller's
+            # loop on an injected one — so this call is the whole publish on
+            # both paths.
+            self._root.declare_lost()
             if client is not None:
                 client.stop()
             return
