@@ -52,6 +52,10 @@ dev = [
     "ruff>=0.15.0",
     "mypy>=1.10",
     "types-pyyaml>=6.0",
+    # DEVELOPER.md tells you to run `uv run pre-commit install`, which cannot
+    # work unless pre-commit is in this group. Without it the hooks in
+    # .pre-commit-config.yaml are configuration nothing executes.
+    "pre-commit>=4.0",
 ]
 
 [project.urls]
