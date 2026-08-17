@@ -1,5 +1,16 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- **`_to_sdk_datatype` resolved Homie datatypes through a hand-maintained name table, so three of the SDK's nine published as `string`.** The table listed six datatypes and sent everything else through a silent `.get(dt, STRING)` default, which meant `datetime`, `duration` and `color` were converted to the wrong `$datatype`. It now resolves by value (`PropertyDatatype(dt.lower())`), correct by construction for every datatype the SDK models now or later. Nothing shipped was affected: no profile currently selects a property carrying one of the three, so this was latent rather than live. It was not hypothetical either. The vendored `catalogs/grid.json` has always carried two `datetime` properties (`last-outage-time`, `last-restoration-time`), and the one-line light selection that is the documented way to add a property would have published them as `string` with the full suite still green.
+- **An unmodelled datatype now raises instead of guessing.** `$datatype` is a required Homie 5 attribute that consumers validate payloads against, so defaulting to `string` yields a tree that is confidently wrong rather than obviously broken. This differs deliberately from `_to_sdk_unit`, where an unmodelled unit still resolves to `None` and is simply omitted: a missing `$unit` is legal, a wrong `$datatype` is not. The error names the offending `entity_class capability/property` and lists what the SDK models.
+
+### Changed
+
+- **`tests/test_wire_units.py` no longer enumerates what it checks.** The file whose docstring is this project's canonical account of this defect was itself an instance of it: its unit assertion looped a hand-written six-element tuple while the shipped profiles carry seven, so `kWh` was already outside the guard, and the datatype axis of the same conversion pair had no test at all. Both are now swept from `load_profiles()` over both variants, a third sweep covers every datatype the vendored catalogs define (which is what would have caught the `datetime` case while it was still only vendored), and an end-to-end check asserts every `$datatype` on the wire is one some profile declares. The original six-unit case is kept as a named regression for the lc3 conformance failure, but it is no longer the coverage claim. Found by an audit for the same fault elsewhere; the remaining candidates are tracked separately.
+
 ## [0.5.0] - 2026-08-08
 
 ### Added
