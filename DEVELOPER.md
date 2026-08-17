@@ -132,7 +132,7 @@ distribution-enclosure-simulator/
       property_bag.py          # Per-tick property values + diff cache
       publisher.py             # Per-tick diff/publish loop
       set_router.py            # Setter registry and /set dispatch
-      _sdk_seam.py             # Internal seam over ebus_sdk (property build, owned-client narrowing, will publish)
+      _sdk_seam.py             # Internal seam over ebus_sdk (property build, owned-client narrowing, will descriptor)
       profiles/                # Vendored Homie 5 device profiles (JSON), per device type
       mapping/                 # Vendored mapping descriptors (YAML), per device type
       catalogs/                # Vendored spec capability catalogs (JSON); the wire type contract
