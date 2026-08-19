@@ -1,5 +1,33 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- **`power-flows` published three of its four values in the wrong sign frame, so they did not sum to zero.** `pv`, `grid` and `battery` were emitted in the meter frame — positive while producing, importing and discharging — matching `capabilities/power-flows.md` 0.1 as literally written. Hardware does something else: a distribution enclosure publishes all four in the default reference direction `capabilities/meter.md` 0.2 later established (positive = power flowing *into* the metered thing), which is what makes the four terms one node balance. Measured on a live enclosure, hours apart: the four values close to within 1e-12 every time, while the frame this emitter used misses by exactly `2 × site`. `site` was already correct and is unchanged — notably it is the one property the catalog describes without a directional verb.
+
+  This is the half of the change that needs a maintainer decision, because the vendored `wire/catalogs/power-flows.json` is a byte copy of the spec and still states the old convention, so this emitter now contradicts a catalog it ships and cannot correct here. See the linked specification issue; the catalog re-vendor follows whatever it settles.
+
+  Four tests fail without it, each mutation-verified one at a time: reverting `pv` fails 5 of the 9 `test_power_flows_sum_to_zero` cases, `battery` 6, `grid` 5. `power_flow_grid` stays derived from the lugs and the BESS rather than back-solved from the other three — a residual would satisfy the balance by construction and detect nothing.
+
+- **`_grid_power_from_lugs_and_bess` clamped BESS charging to the visible PV surplus, hiding real grid import.** The clamp existed so a charging BESS "never creates extra grid import", but `self-consumption` already charges from `pv_surplus_w` alone, so it never bound there — while `backup-only` deliberately charges from the utility, and the clamp deleted exactly that import from the reading. 500 W of load with a BESS pulling 1.5 kW and no array reported 500 W of import instead of 2 kW. It also put the node balance out by the amount hidden, which is how it was found. Now one subtraction in both directions.
+
+- **Lugs energy registers integrated the circuits behind them instead of their own meter.** `active-power` on a lugs device is the net through that point, but `imported-energy` / `exported-energy` were handed the gross sum of every circuit's energy — a different quantity. With 6 kW of load against 7 kW of PV the lugs carry ~1 kW in one direction, yet both registers advanced in the same tick. `capabilities/meter.md` calls `imported-energy` "the energy counterpart of positive `active-power`", and a counterpart that integrates a different signal is not one; integrating `active-power` would never have equalled `imported - exported`. A live enclosure never advances both at once. Lugs now register with `EnergyIntegrator` like any other metered point. `test_lugs_energy_integrates_its_own_meter_not_the_circuits_behind_it` fails without it: the old path reports 6000 Wh exported and 2000 Wh imported where 4000 Wh and 0 are correct.
+
+- **BESS `meter/active-power` published the battery's own frame instead of the enclosure's, making it the exact inverse of `power-flows/battery`.** The resolver returned `EbusBatterySnapshot.active_power_w` unchanged, which is positive while discharging. What an enclosure proxies for a battery it hosts is the enclosure's reading of that battery, not the battery's reading of itself — the mirror image, positive while charging, power leaving the enclosure node into the battery. That is the same quantity and the same sign as `power-flows/battery`, and shipping firmware publishes the two that way. The old behaviour had one device, describing one battery, at one instant, contradicting itself across two of its own properties. `_bess_wire_active_power` now mirrors it in the wire layer, alongside `_circuit_wire_active_power`, leaving the snapshot's device-frame meaning untouched for every other reader. `test_bess_meter_active_power_matches_power_flows_battery` asserts the identity across a load-only and a PV-surplus tick, and pins the absolute sign against the snapshot so it cannot pass by agreeing with itself.
+
+  A standalone BESS elsewhere on the same bus still publishes its own meter in its own frame; that disagreement is correct, and this one was not.
+
+### Added
+
+- **A `Sign Frames` section in `AGENTS.md`.** Three of the four defects above are the same defect — a device-frame value published where the enclosure's mirror of it belongs — and none of them could be caught mechanically, because reference direction has no machine-readable form in the catalogs. Writing the rule down is currently the only thing standing between it and the next contributor. Includes the frame table, where the negation belongs (the wire layer, never the snapshot), and the node-balance invariant.
+
+- **Coverage for the downstream lugs reference direction, which is inverted relative to the upstream lugs and was untested.** Upstream lugs read positive when the utility delivers *into* the enclosure; downstream lugs read positive when the enclosure delivers *out* through the feedthrough, and `imported-energy` accrues on that outward direction. This emitter already behaved correctly; nothing asserted it, because the enclosure the published tree was diffed against has no feedthrough load, so both registers sat at zero and either sign would have passed. `test_downstream_lugs_meter_is_positive_when_the_panel_feeds_the_subpanel` pins it. No behaviour change.
+
+### Removed
+
+- **`connection/count`, which no configuration could ever publish.** Every circuit and both lugs devices declared it, and the snapshot fields behind it (`EbusCircuitSnapshot.feeds_count`, `EbusLugsSnapshot.connection_count`) were never assigned by any code path — so a consumer reading `$description` waited for a value that could not arrive. `capabilities/connection.md` scopes `count` to a node that "aggregates multiple physical units behind a *single* connection point"; this emitter models every DER as its own device and aggregates nothing, so the property has nothing to describe here rather than merely being unpopulated. The declaration, the two `bag_builder` resolvers and the two dataclass fields all go. Populating it instead would need a manifest key and is a feature, not this fix. `test_every_declared_connection_property_can_be_published` guards it.
+
 ## [0.5.1] - 2026-08-17
 
 ### Changed
