@@ -297,7 +297,6 @@ _RESOLVERS: dict[tuple[str, str], Resolver] = {
     ("circuit", "connection/feeds-device-id"): _circuit_field("feeds_device_id"),
     ("circuit", "connection/feeds-device-type"): _circuit_field("feeds_device_type"),
     ("circuit", "connection/feeds-device-status"): _circuit_field("feeds_device_status"),
-    ("circuit", "connection/count"): _circuit_field("feeds_count"),
     # ---- lugs -----------------------------------------------------------
     ("lugs", "info/direction"): _upper_lugs_direction,
     ("lugs", "meter/current-a"): _lugs_field("l1_current_a"),
@@ -311,7 +310,6 @@ _RESOLVERS: dict[tuple[str, str], Resolver] = {
     ("lugs", "connection/feeds-device-id"): _lugs_field("feeds_device_id"),
     ("lugs", "connection/feeds-device-type"): _lugs_field("feeds_device_type"),
     ("lugs", "connection/feeds-device-status"): _lugs_field("feeds_device_status"),
-    ("lugs", "connection/count"): _lugs_field("connection_count"),
     # ---- bess -----------------------------------------------------------
     ("bess", "info/vendor-name"): _bess_field("vendor_name"),
     ("bess", "info/part-number"): _bess_field("part_number"),

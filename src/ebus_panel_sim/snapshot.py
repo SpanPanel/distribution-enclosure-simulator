@@ -56,7 +56,6 @@ class EbusCircuitSnapshot:
     feeds_device_id: str | None = None
     feeds_device_type: str | None = None
     feeds_device_status: str | None = None
-    feeds_count: int | None = None
 
 
 @dataclass(slots=True)
@@ -134,7 +133,6 @@ class EbusLugsSnapshot:
     feeds_device_id: str | None = None
     feeds_device_type: str | None = None
     feeds_device_status: str | None = None
-    connection_count: int | None = None
 
 
 @dataclass(slots=True)
