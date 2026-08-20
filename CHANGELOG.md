@@ -27,6 +27,13 @@
 ### Removed
 
 - **`connection/count`, which no configuration could ever publish.** Every circuit and both lugs devices declared it, and the snapshot fields behind it (`EbusCircuitSnapshot.feeds_count`, `EbusLugsSnapshot.connection_count`) were never assigned by any code path — so a consumer reading `$description` waited for a value that could not arrive. `capabilities/connection.md` scopes `count` to a node that "aggregates multiple physical units behind a *single* connection point"; this emitter models every DER as its own device and aggregates nothing, so the property has nothing to describe here rather than merely being unpopulated. The declaration, the two `bag_builder` resolvers and the two dataclass fields all go. Populating it instead would need a manifest key and is a feature, not this fix. `test_every_declared_connection_property_can_be_published` guards it.
+## [0.5.2] - 2026-08-20
+
+### Changed
+
+- **`ebus-sdk` may now be 0.21.** The floor is unchanged; only the upper bound moves, from `<0.21` to `<0.22`. Nothing in this package uses anything new — the change exists because the cap was what pinned every *consumer* of this package below 0.21, and 0.5.1 is the only published version, so there was no way to depend on `ebus-panel-sim` and be on the current SDK at once. 0.21.0 is where `DeviceSpec` and `DeviceTreeBuilder` arrive and where `mqtt_cfg=None` becomes the documented passive mode, so a consumer wanting either could not have it.
+
+  The bound was not load-bearing: relaxing it and changing nothing else, the suite passes 207/207 on 0.21.0. Taken as a conservative bound at the 0.20.1 floor rather than a recorded incompatibility — if it guarded something the suite does not reach, that is worth writing into the pin comment, which currently carries no reason.
 
 ## [0.5.1] - 2026-08-17
 
