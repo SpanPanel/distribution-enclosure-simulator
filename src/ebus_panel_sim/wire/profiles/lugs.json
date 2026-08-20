@@ -42,9 +42,6 @@
         },
         "feeds-device-status": {
           "name": "Panel's view of comm health to the downstream device"
-        },
-        "count": {
-          "name": "Number of physical units aggregated up/downstream"
         }
       }
     }

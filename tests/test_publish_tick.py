@@ -128,7 +128,8 @@ def test_publish_tick_emits_circuit_power(emitter_no_bess: Emitter) -> None:
     assert snap.circuits["kitchen"].relay_state == "CLOSED"
     assert snap.circuits["kitchen"].current_a == pytest.approx(500.0 / 120.0)
     assert snap.meter.instant_grid_power_w == 500.0
-    assert snap.power_flows.grid == 500.0
+    # power-flows is the node frame: importing means power enters the panel.
+    assert snap.power_flows.grid == -500.0
     assert snap.pcs.grid_state == "ON_GRID"
 
 
@@ -254,7 +255,10 @@ def test_publish_tick_pv_export_drives_grid_negative(emitter_no_bess: Emitter) -
     )
     # load - pv = 500 - 2000 = -1500 (exporting)
     assert snap.meter.instant_grid_power_w == -1500.0
-    assert snap.power_flows.pv == 2000.0
+    # ... and the node frame reports the same instant with the opposite sign on
+    # both terms: the array feeds the panel, the surplus leaves through the grid.
+    assert snap.power_flows.pv == -2000.0
+    assert snap.power_flows.grid == 1500.0
 
 
 def test_circuit_active_power_wire_sign_is_inverse_of_internal_model(rec: PahoRecorder) -> None:
@@ -634,3 +638,127 @@ def test_dipole_circuit_per_leg_currents() -> None:
     # Per-circuit current uses line-to-line voltage for dipole.
     assert snap.circuits["hvac"].current_a == pytest.approx(20.0)
     assert snap.circuits["hvac"].is_240v is True
+
+
+def test_lugs_energy_integrates_its_own_meter_not_the_circuits_behind_it() -> None:
+    """A lugs meter's registers are the counterpart of its own ``active-power``.
+
+    With PV and load running at once the lugs carry only the net, in one
+    direction. Summing the circuits behind them advanced ``imported-energy`` AND
+    ``exported-energy`` in the same tick -- a state no live panel produces, and
+    one that makes ``imported - exported`` describe something other than what
+    actually flowed through the lugs.
+    """
+    manifest = DeviceManifest(
+        instances=(
+            _panel_inst(),
+            DeviceInstance("lugs", "lugs-upstream", "Upstream lugs", {"direction": "upstream"}),
+            _circuit_inst("kitchen", tabs="1"),
+            _circuit_inst("solar", tabs="3"),
+        )
+    )
+    powers = {"kitchen": 2000.0, "solar": -6000.0}
+    em = Emitter(manifest, _registry())
+    em.start()
+    # The first observation only establishes the integrator's clock.
+    em.publish_tick(TickInputs(current_time=0.0, grid_online=True, circuits=powers))
+    snap = em.publish_tick(TickInputs(current_time=3600.0, grid_online=True, circuits=powers))
+
+    lugs = snap.lugs["lugs-upstream"]
+    # 2000 W of load against 6000 W of PV: 4000 W leaves through the lugs, for an
+    # hour. Exactly one register may move, and by the integral of that power.
+    assert lugs.active_power_w == pytest.approx(-4000.0)
+    assert lugs.exported_energy_wh == pytest.approx(4000.0)
+    assert lugs.imported_energy_wh == 0.0
+    # The circuits behind it are busy in both directions at once -- which is what
+    # the registers used to be handed.
+    assert snap.circuits["kitchen"].consumed_energy_wh > 0.0
+    assert snap.circuits["solar"].produced_energy_wh > 0.0
+
+
+def test_bess_meter_active_power_matches_power_flows_battery(rec: PahoRecorder) -> None:
+    """The panel's two views of the same battery agree, value and sign.
+
+    A panel proxying a battery it hosts publishes its own reading of that
+    battery, not the battery's reading of itself, so ``bess/meter/active-power``
+    is positive while charging -- power leaving the panel node into the battery
+    -- and is the same quantity as ``power-flows/battery``. Publishing the
+    device-frame value here made the two exact opposites of each other, on one
+    panel, describing one battery, at one instant.
+
+    A standalone BESS device on the same bus still publishes its own meter in
+    its own frame. That disagreement is correct; this one was not.
+    """
+    manifest = DeviceManifest(instances=(_panel_inst(), _circuit_inst(), _bess_inst()))
+    bess_cfg = BESSConfig(
+        instance_id="abc-123-bess",
+        nameplate_capacity_kwh=13.5,
+        max_charge_w=3500.0,
+        max_discharge_w=3500.0,
+    )
+    em = Emitter(manifest, _registry(), bess_configs=(bess_cfg,))
+    em.start()
+
+    # Load only, then PV surplus: whatever the dispatch model decides in each,
+    # the two published views of it must not disagree.
+    for tick_no, circuits in enumerate(
+        ({"kitchen": 3000.0}, {"kitchen": 500.0, "solar": -6000.0}),
+    ):
+        snap = em.publish_tick(
+            TickInputs(
+                current_time=float(tick_no) * 60.0,
+                grid_online=True,
+                circuits=circuits,
+            ),
+        )
+        wire = float(rec.retained["ebus/5/abc-123-bess/meter/active-power"])
+        flows = float(rec.retained["ebus/5/abc-123/power-flows/battery"])
+
+        assert wire == pytest.approx(flows), (
+            f"tick {tick_no}: bess meter {wire} != power-flows/battery {flows}"
+        )
+        # ...and both are the panel's frame, the inverse of the device frame the
+        # snapshot carries. Asserted against the snapshot so the sign is pinned
+        # absolutely, not just pinned to itself.
+        device_frame = snap.battery["abc-123-bess"].active_power_w
+        assert wire == pytest.approx(-device_frame)
+
+
+def test_downstream_lugs_meter_is_positive_when_the_panel_feeds_the_subpanel() -> None:
+    """The downstream lugs is the one meter here whose positive direction is out.
+
+    Upstream lugs read positive when the utility delivers *into* the panel;
+    downstream lugs read positive when the panel delivers *out* to whatever the
+    feedthrough serves. A panel publishes both that way, and ``imported-energy``
+    on the downstream lugs accrues on that outward direction accordingly.
+
+    Nothing covered this because the enclosure the tree was diffed against has
+    no feedthrough load, so both registers sat at zero and any sign would have
+    passed.
+    """
+    manifest = DeviceManifest(
+        instances=(
+            _panel_inst(),
+            DeviceInstance("lugs", "lugs-upstream", "Upstream lugs", {"direction": "upstream"}),
+            DeviceInstance(
+                "lugs", "lugs-downstream", "Downstream lugs", {"direction": "downstream"}
+            ),
+            _circuit_inst("subpanel", tabs="1", placement="downstream-of-lugs"),
+        )
+    )
+    powers = {"subpanel": 2500.0}
+    em = Emitter(manifest, _registry())
+    em.start()
+    em.publish_tick(TickInputs(current_time=0.0, grid_online=True, circuits=powers))
+    snap = em.publish_tick(TickInputs(current_time=3600.0, grid_online=True, circuits=powers))
+
+    down = snap.lugs["lugs-downstream"]
+    assert down.active_power_w == pytest.approx(2500.0)
+    assert down.imported_energy_wh == pytest.approx(2500.0)
+    assert down.exported_energy_wh == 0.0
+
+    # The upstream lugs carries the same power in the opposite frame: the
+    # utility is delivering it inward.
+    up = snap.lugs["lugs-upstream"]
+    assert up.active_power_w == pytest.approx(2500.0)
+    assert up.imported_energy_wh == pytest.approx(2500.0)
