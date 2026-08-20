@@ -1,6 +1,14 @@
 # Changelog
 
-## [Unreleased]
+## [0.6.0] - 2026-08-20
+
+**BREAKING (wire).** This release changes the sign of values already being published. A consumer that stored or integrated any of them has records in the old frame that this release does not migrate. The affected properties are `power-flows/pv`, `power-flows/grid`, `power-flows/battery`, the BESS child's `meter/active-power`, and the downstream lugs' `meter/imported-energy` / `meter/exported-energy`. `power-flows/site` and the hosted-circuit frame are unchanged. The convention published here is now the one `capabilities/power-flows.md` 0.2 describes, so a consumer that was negating these values to compensate should stop.
+
+### Changed
+
+- **Vendored spec catalogs and `.ebus-spec.json` re-pinned to specification `4085c68`.** Eight capability catalogs are re-vendored as byte copies (`breaker` 0.1 → 0.2, `connection` 0.1 → 0.2, `grid` 0.1 → 0.2, `info` 0.2 → 0.3, `meter` 0.2 → 0.4, `power-flows` 0.1 → 0.2, `soc` 0.1 → 0.2, `switch` 0.1 → 0.3), with twelve lockfile pins moved plus `framework` 0.7 → 0.9 and the device models `distribution-enclosure` 0.12 → 0.14, `circuit` 0.3 → 0.4, `bess` 0.14 → 0.15. `power-flows` 0.2 is the one that matters: it reverses the reference direction of `grid`, `battery` and `pv` so the four values form one node balance summing to zero, which is the frame the fixes below implement. Before this the package published that frame while shipping a catalog describing the opposite. The device-model bumps carry a requirement-level relaxation upstream; nothing this package publishes becomes non-conformant, because every change there was a relaxation and it already published all of the affected properties.
+
+- Five private tracker identifiers removed from the `.ebus-spec.json` `notes` field and replaced with descriptions of the work. That file ships in the sdist, so they were public-facing and meaningless to a reader outside the project.
 
 ### Fixed
 
